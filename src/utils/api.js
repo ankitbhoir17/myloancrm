@@ -2,6 +2,17 @@ const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || '').replace(/\/+$/, 
 
 export const AUTH_TOKEN_KEY = 'auth_token';
 export const AUTH_USER_KEY = 'auth_user';
+const CLIENT_CACHE_KEYS = [
+  'customers',
+  'loans',
+  'enquiries',
+  'leads',
+  'lenders',
+  'lender_logins',
+  'app_users',
+  'app_recycle_bin',
+  'app_activities',
+];
 
 function dispatchAuthChanged() {
   if (typeof window !== 'undefined') {
@@ -73,6 +84,10 @@ export function clearAuthSession() {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem('user');
+    CLIENT_CACHE_KEYS.forEach((key) => {
+      localStorage.removeItem(key);
+      dispatchStorageChanged(key);
+    });
     dispatchAuthChanged();
   } catch (error) {
     // Ignore storage failures and keep the UI usable.

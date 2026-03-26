@@ -102,18 +102,19 @@ export function mergeLendersWithFlow(lenders = [], loans = readStoredLoans()) {
     byName.set(key, inferred);
   });
 
-  return existing
-    .filter((item) => hasLinkedLenderCases(item.name, loans))
-    .map((item) => {
-      const relatedLoans = getRelatedLenderLoans(item.name, loans);
-      const inFlowCases = relatedLoans.filter((loan) => !IN_FLOW_EXCLUDED.has(loan.status)).length;
-      return {
-        ...item,
-        status: inFlowCases > 0 || getStoredLenderLogins(item.id).length > 0
-          ? 'Active'
-          : 'Inactive',
-      };
-    });
+  return existing.map((item) => {
+    const relatedLoans = getRelatedLenderLoans(item.name, loans);
+    const inFlowCases = relatedLoans.filter((loan) => !IN_FLOW_EXCLUDED.has(loan.status)).length;
+    const cachedLogins = getStoredLenderLogins(item.id);
+    const loginsCount = Math.max(Number(item.loginsCount || 0), cachedLogins.length);
+    return {
+      ...item,
+      loginsCount,
+      lastLoginDate: cachedLogins[0]?.loginDate || item.lastLoginDate || '',
+      lastLoginStatus: cachedLogins[0]?.status || item.lastLoginStatus || '',
+      status: inFlowCases > 0 || loginsCount > 0 ? 'Active' : (item.status || 'Inactive'),
+    };
+  });
 }
 
 export function renameLenderInLoans(previousName, nextName, loans = readStoredLoans()) {
@@ -156,6 +157,9 @@ export function formatCurrency(value) {
 export function buildLenderInsight(lender, loans = readStoredLoans()) {
   const relatedLoans = getRelatedLenderLoans(lender.name, loans);
   const logins = getStoredLenderLogins(lender.id);
+  const loginsCount = Math.max(Number(lender.loginsCount || 0), logins.length);
+  const lastLoginDate = logins[0]?.loginDate || lender.lastLoginDate || '';
+  const lastLoginStatus = logins[0]?.status || lender.lastLoginStatus || '';
   const flowBreakdown = getLoanFlowBreakdown(relatedLoans);
   const totalCases = relatedLoans.length;
   const totalAmount = relatedLoans.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
@@ -177,7 +181,7 @@ export function buildLenderInsight(lender, loans = readStoredLoans()) {
 
   return {
     ...lender,
-    status: inFlowCases > 0 || logins.length > 0 ? 'Active' : 'Inactive',
+    status: inFlowCases > 0 || loginsCount > 0 ? 'Active' : (lender.status || 'Inactive'),
     relatedLoans,
     flowBreakdown,
     totalCases,
@@ -190,8 +194,8 @@ export function buildLenderInsight(lender, loans = readStoredLoans()) {
     currentFlowDate: currentFlow?.date || '',
     activeFlowCounts,
     logins,
-    loginsCount: logins.length,
-    lastLoginDate: logins[0]?.loginDate || '',
-    lastLoginStatus: logins[0]?.status || '',
+    loginsCount,
+    lastLoginDate,
+    lastLoginStatus,
   };
 }

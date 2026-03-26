@@ -3,21 +3,23 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { addActivity } from '../utils/activities';
 import { readCachedCustomers } from '../utils/crmData';
-import { addToRecycleBin, getNextEntityId } from '../utils/recycleBin';
+import {
+  createEnquiryRecord,
+  deleteEnquiryRecord,
+  readCachedEnquiries,
+  syncEnquiriesCache,
+  updateEnquiryRecord,
+  writeCachedEnquiries,
+} from '../utils/enquiriesData';
+import { addToRecycleBin } from '../utils/recycleBin';
 import CustomerSelect from '../components/CustomerSelect';
 import './Customers.css';
 
 function Enquiries() {
   const [customers, setCustomers] = useState(() => readCachedCustomers());
-  const [enquiries, setEnquiries] = useState(() => {
-    try {
-      const saved = localStorage.getItem('enquiries');
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      return [];
-    }
-  });
-
+  const [enquiries, setEnquiries] = useState(() => readCachedEnquiries());
+  const [loadingEnquiries, setLoadingEnquiries] = useState(true);
+  const [pageError, setPageError] = useState('');
   const [enquiryForm, setEnquiryForm] = useState({
     customerId: '',
     customerName: '',
@@ -29,97 +31,138 @@ function Enquiries() {
   const { user } = useAuth();
 
   useEffect(() => {
-    const syncCustomers = () => {
-      setCustomers(readCachedCustomers());
+    let mounted = true;
+
+    const loadEnquiries = async () => {
+      try {
+        setLoadingEnquiries(true);
+        setPageError('');
+        const nextEnquiries = await syncEnquiriesCache();
+        if (mounted) {
+          setEnquiries(nextEnquiries);
+        }
+      } catch (error) {
+        if (mounted) {
+          setEnquiries(readCachedEnquiries());
+          setPageError(error.message || 'Failed to load enquiries.');
+        }
+      } finally {
+        if (mounted) {
+          setLoadingEnquiries(false);
+        }
+      }
     };
 
-    window.addEventListener('storage', syncCustomers);
-    window.addEventListener('app:storage-changed', syncCustomers);
+    loadEnquiries();
+
+    const syncData = (event) => {
+      const key = event?.detail?.key || event?.key;
+      if (!key || key === 'customers') {
+        setCustomers(readCachedCustomers());
+      }
+      if (!key || key === 'enquiries') {
+        setEnquiries(readCachedEnquiries());
+      }
+    };
+
+    window.addEventListener('storage', syncData);
+    window.addEventListener('app:storage-changed', syncData);
 
     return () => {
-      window.removeEventListener('storage', syncCustomers);
-      window.removeEventListener('app:storage-changed', syncCustomers);
+      mounted = false;
+      window.removeEventListener('storage', syncData);
+      window.removeEventListener('app:storage-changed', syncData);
     };
   }, []);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('enquiries', JSON.stringify(enquiries));
-    } catch (error) {
-      console.error('Failed saving enquiries to localStorage', error);
-    }
-  }, [enquiries]);
-
-  const handleCreateEnquiry = (event) => {
+  const handleCreateEnquiry = async (event) => {
     event.preventDefault();
-    const nextId = getNextEntityId('enquiries', enquiries);
-    const today = new Date().toISOString().slice(0, 10);
+    setPageError('');
+
     const matchedCustomer = enquiryForm.customerId
       ? customers.find((customer) => String(customer.id) === String(enquiryForm.customerId))
       : null;
 
-    const enquiryToAdd = {
-      id: nextId,
-      customerId: enquiryForm.customerId || null,
-      customerName: matchedCustomer?.name || enquiryForm.customerName,
-      email: enquiryForm.email,
-      phone: enquiryForm.phone,
-      message: enquiryForm.message,
-      status: 'New',
-      date: today,
-    };
-
-    setEnquiries((previous) => [enquiryToAdd, ...previous]);
     try {
-      addActivity({
-        type: 'enquiry_created',
-        actor: user?.username || 'system',
-        message: `Enquiry #${nextId} created by ${user?.username || 'guest'}`,
-        meta: { enquiryId: nextId },
+      const enquiryToAdd = await createEnquiryRecord({
+        customerId: enquiryForm.customerId || null,
+        customerName: matchedCustomer?.name || enquiryForm.customerName,
+        email: enquiryForm.email,
+        phone: enquiryForm.phone,
+        message: enquiryForm.message,
+        status: 'New',
       });
-    } catch (error) {
-      // Ignore activity logging failures to keep enquiry creation responsive.
-    }
-    setEnquiryForm({ customerId: '', customerName: '', email: '', phone: '', message: '' });
-  };
 
-  const handleResolveEnquiry = (id) => {
-    setEnquiries((previous) => previous.map((enquiry) => {
-      if (enquiry.id === id) {
-        const nextStatus = enquiry.status === 'New' ? 'Resolved' : 'New';
-        try {
-          addActivity({
-            type: 'enquiry_status',
-            actor: user?.username || 'system',
-            message: `Enquiry #${id} marked ${nextStatus}`,
-            meta: { enquiryId: id, status: nextStatus },
-          });
-        } catch (error) {
-          // Ignore activity logging failures to keep enquiry actions responsive.
-        }
-        return { ...enquiry, status: nextStatus };
+      const nextEnquiries = [enquiryToAdd, ...enquiries];
+      setEnquiries(nextEnquiries);
+      writeCachedEnquiries(nextEnquiries);
+
+      try {
+        addActivity({
+          type: 'enquiry_created',
+          actor: user?.username || 'system',
+          message: `Enquiry ${enquiryToAdd.id} created by ${user?.username || 'guest'}`,
+          meta: { enquiryId: enquiryToAdd.id },
+        });
+      } catch (error) {
+        // Ignore activity logging failures to keep enquiry creation responsive.
       }
-      return enquiry;
-    }));
+
+      setEnquiryForm({ customerId: '', customerName: '', email: '', phone: '', message: '' });
+    } catch (error) {
+      setPageError(error.message || 'Failed to create enquiry.');
+    }
   };
 
-  const handleDeleteEnquiry = (id) => {
-    const targetEnquiry = enquiries.find((item) => item.id === id);
-    if (!targetEnquiry) {
-      return;
-    }
+  const handleResolveEnquiry = async (enquiry) => {
+    const nextStatus = enquiry.status === 'New' ? 'Resolved' : 'New';
+    setPageError('');
 
-    addToRecycleBin({ entityType: 'enquiries', item: targetEnquiry });
-    setEnquiries((previous) => previous.filter((item) => item.id !== id));
     try {
-      addActivity({
-        type: 'enquiry_deleted',
-        actor: user?.username || 'system',
-        message: `Enquiry #${id} moved to recycle bin`,
-        meta: { enquiryId: id },
-      });
+      const updatedEnquiry = await updateEnquiryRecord(enquiry.id, { status: nextStatus });
+      const nextEnquiries = enquiries.map((item) => (
+        item.id === enquiry.id ? updatedEnquiry : item
+      ));
+      setEnquiries(nextEnquiries);
+      writeCachedEnquiries(nextEnquiries);
+
+      try {
+        addActivity({
+          type: 'enquiry_status',
+          actor: user?.username || 'system',
+          message: `Enquiry ${enquiry.id} marked ${nextStatus}`,
+          meta: { enquiryId: enquiry.id, status: nextStatus },
+        });
+      } catch (error) {
+        // Ignore activity logging failures to keep enquiry actions responsive.
+      }
     } catch (error) {
-      // Ignore activity logging failures to keep enquiry deletion responsive.
+      setPageError(error.message || 'Failed to update enquiry status.');
+    }
+  };
+
+  const handleDeleteEnquiry = async (enquiry) => {
+    setPageError('');
+
+    try {
+      await deleteEnquiryRecord(enquiry.id);
+      addToRecycleBin({ entityType: 'enquiries', item: enquiry });
+      const nextEnquiries = enquiries.filter((item) => item.id !== enquiry.id);
+      setEnquiries(nextEnquiries);
+      writeCachedEnquiries(nextEnquiries);
+
+      try {
+        addActivity({
+          type: 'enquiry_deleted',
+          actor: user?.username || 'system',
+          message: `Enquiry ${enquiry.id} moved to recycle bin`,
+          meta: { enquiryId: enquiry.id },
+        });
+      } catch (error) {
+        // Ignore activity logging failures to keep enquiry deletion responsive.
+      }
+    } catch (error) {
+      setPageError(error.message || 'Failed to delete enquiry.');
     }
   };
 
@@ -128,6 +171,8 @@ function Enquiries() {
       <div className="page-header">
         <h1>Enquiries</h1>
       </div>
+
+      {pageError ? <div className="error-message">{pageError}</div> : null}
 
       <div className="enquiry-form">
         <form onSubmit={handleCreateEnquiry}>
@@ -207,7 +252,9 @@ function Enquiries() {
       </div>
 
       <div className="enquiries-list">
-        {enquiries.length === 0 ? (
+        {loadingEnquiries ? (
+          <p className="muted">Loading enquiries...</p>
+        ) : enquiries.length === 0 ? (
           <p className="muted">No enquiries yet.</p>
         ) : (
           enquiries.map((enquiry) => (
@@ -228,10 +275,10 @@ function Enquiries() {
               </div>
               <div className="enquiry-message">{enquiry.message}</div>
               <div className="enquiry-actions">
-                <button className="btn-secondary" onClick={() => handleResolveEnquiry(enquiry.id)}>
+                <button className="btn-secondary" onClick={() => handleResolveEnquiry(enquiry)}>
                   {enquiry.status === 'New' ? 'Resolve' : 'Reopen'}
                 </button>
-                <button className="btn-danger" onClick={() => handleDeleteEnquiry(enquiry.id)}>Delete</button>
+                <button className="btn-danger" onClick={() => handleDeleteEnquiry(enquiry)}>Delete</button>
                 {enquiry.customerId ? (
                   <Link to={`/customers/${enquiry.customerId}`} className="action-link">View Customer</Link>
                 ) : null}

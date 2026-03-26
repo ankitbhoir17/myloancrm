@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const Login = require('../models/Login');
 const Lender = require('../models/Lender');
-const { getDemoLoginsByLender } = require('../utils/demoLenderLogins');
 
 function hasDatabaseConnection() {
   return mongoose.connection.readyState === 1;
@@ -12,7 +11,7 @@ exports.getLoginsByLender = async (req, res, next) => {
   const lenderId = req.params.id;
 
   if (!hasDatabaseConnection()) {
-    return res.json({ success: true, data: getDemoLoginsByLender(lenderId), source: 'demo' });
+    return res.status(503).json({ message: 'Database unavailable. Lender logins cannot be loaded right now.' });
   }
 
   try {
@@ -30,9 +29,6 @@ exports.getLoginsByLender = async (req, res, next) => {
       const maybeNum = Number(lenderId);
       if (!Number.isNaN(maybeNum)) {
         const items = await Login.find({ 'metadata.legacyLenderId': maybeNum }).sort('-loginDate');
-        if (items.length === 0) {
-          return res.json({ success: true, data: getDemoLoginsByLender(lenderId), source: 'demo' });
-        }
         return res.json({ success: true, data: items });
       }
       return res.status(404).json({ message: 'Lender not found' });
@@ -41,9 +37,6 @@ exports.getLoginsByLender = async (req, res, next) => {
     const logins = await Login.find({ lender: lender._id }).sort('-loginDate');
     res.json({ success: true, data: logins });
   } catch (err) {
-    if (!hasDatabaseConnection()) {
-      return res.json({ success: true, data: getDemoLoginsByLender(lenderId), source: 'demo' });
-    }
     next(err);
   }
 };

@@ -1,120 +1,80 @@
 # MyLoanCRM
 
-A modern Loan Customer Relationship Management (CRM) system built with React.
+A modern Loan Customer Relationship Management (CRM) system built with React and Express.
 
 ## Features
 
-- **User Authentication**: Secure login/logout functionality
-- **Dashboard**: Overview of loan statistics and recent activities
-- **Loan Management**: Create, view, and manage loan applications
-- **Customer Management**: Track customer profiles and their loan history
-- **Responsive Design**: Works on desktop and mobile devices
+- User authentication with role-based access
+- Dashboard with loan activity snapshots
+- Customer management
+- Loan management
+- User administration for superusers
+- Responsive interface for desktop and mobile
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn
+- Node.js
+- npm
 
 ### Installation
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. Start the development server:
-   ```bash
-   npm start
-   ```
-
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-### Demo Login
-
-You can log in with any username and password to explore the demo.
-
-## Project Structure
-
-```
-src/
-├── components/       # Reusable UI components
-│   ├── Layout.js     # Main layout with sidebar
-│   └── Layout.css
-├── context/          # React Context providers
-│   └── AuthContext.js
-├── pages/            # Page components
-│   ├── Login.js
-│   ├── Dashboard.js
-│   ├── Loans.js
-│   ├── LoanDetails.js
-│   ├── Customers.js
-│   └── CustomerDetails.js
-├── App.js            # Main app with routing
-├── App.css
-├── index.js          # Entry point
-└── index.css         # Global styles
-```
-
-## Available Scripts
-
-- `npm start` - Run development server
-- `npm build` - Build for production
-- `npm test` - Run tests
-
-### Backend
-
-The project includes an Express backend in the `backend/` folder.
-
-- Install dependencies (if not already installed):
 ```bash
 npm install
 ```
-- Run the backend server (production):
+
+### Frontend
+
+```bash
+npm start
+```
+
+Open `http://localhost:3000`.
+
+### Backend
+
+Production-style backend:
+
 ```bash
 npm run server
 ```
-- Run the backend in development with auto-reload (requires `nodemon`):
+
+Local backend with a temporary in-memory MongoDB:
+
 ```bash
-npm run dev
+npm run server:local
 ```
 
-## API (basic)
+When using `npm run server:local`, the app starts with a temporary MongoDB in memory.
+This is useful for local testing when MongoDB Atlas is unavailable.
+Data created in this mode is reset when the server stops.
 
-Base path: `/api`
+### Recover Superuser Access
 
-- `POST /api/auth/register` — register a new user
-- `POST /api/auth/login` — authenticate and get JWT
-- `GET /api/auth/me` — get current user (protected)
+If you forget the superuser login, you can reset or recreate it directly in MongoDB:
 
-- `GET /api/customers` — list customers (protected)
-- `POST /api/customers` — create customer (protected)
-- `GET /api/customers/:id` — get customer (protected)
-- `PUT /api/customers/:id` — update customer (protected)
-- `DELETE /api/customers/:id` — delete customer (protected)
+```bash
+$env:MONGODB_URI="your-mongodb-uri"
+npm run recover:superuser -- --username admin --email admin@example.com --password "NewStrongPassword123" --name "Admin User"
+```
 
-- `GET /api/loans` — list loans (protected)
-- `POST /api/loans` — create loan (protected)
-- `GET /api/loans/:id` — get loan (protected)
-- `PUT /api/loans/:id` — update loan (protected)
-- `DELETE /api/loans/:id` — delete loan (protected)
+This command will:
 
-- `GET /api/activities` — list activities (protected)
-- `POST /api/activities` — create activity (protected)
-- `GET /api/activities/:id` — get activity (protected)
-- `PUT /api/activities/:id` — update activity (protected)
-- `DELETE /api/activities/:id` — delete activity (protected)
+- reset the password if the matching user already exists
+- force the account role back to `superuser`
+- reactivate the account if it was disabled
+- create a new superuser if no matching user exists
 
-Notes:
-- All protected endpoints require a Bearer token in the `Authorization` header.
-- Configure `.env` with `MONGODB_URI`, `PORT`, and `JWT_SECRET` for production.
-## Tech Stack
+## Deployment
 
-- React 18
-- React Router v6
-- CSS (no external UI library)
+Frontend:
 
-## License
+- Build with `npm run build`
+- Upload the `build/` contents to Hostinger `public_html`
 
-MIT
+Backend:
+
+- Deploy the Node.js API to Render using `render.yaml`
+
+See [DEPLOY_CHECKLIST.md](C:/Users/DELL/myloancrm/DEPLOY_CHECKLIST.md) for the full step-by-step deployment flow.

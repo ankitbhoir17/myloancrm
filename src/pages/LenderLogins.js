@@ -4,35 +4,10 @@ import './Lenders.css';
 import { fetchLenderLogins } from '../utils/lenderLogins';
 import { LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
 import { buildLenderInsight, formatCurrency, mergeLendersWithFlow, readStoredLoans } from '../utils/lenderFlow';
-
-const defaultLenders = [
-  { id: 1, name: 'HDFC BANK', image: '', createdAt: '2026-02-07' },
-  { id: 2, name: 'ICICI BANK', image: '', createdAt: '2026-02-06' },
-];
-
-function normalizeLenderRecord(item, fallbackId) {
-  const createdValue = item?.createdAt || item?.created_at || new Date().toISOString().slice(0, 10);
-  const parsedDate = new Date(createdValue);
-  return {
-    id: item?.id ?? item?._id ?? fallbackId,
-    name: String(item?.name || `Lender ${fallbackId}`).trim(),
-    image: item?.image || '',
-    createdAt: Number.isNaN(parsedDate.getTime()) ? String(createdValue) : parsedDate.toISOString().slice(0, 10),
-    status: item?.status || 'Inactive',
-  };
-}
+import { readCachedLenders, syncLendersCache } from '../utils/lendersData';
 
 function readStoredLenders(loans = readStoredLoans()) {
-  try {
-    const saved = JSON.parse(localStorage.getItem('lenders') || 'null');
-    if (Array.isArray(saved) && saved.length) {
-      return mergeLendersWithFlow(saved.map((item, index) => normalizeLenderRecord(item, index + 1)), loans);
-    }
-  } catch (error) {
-    // Ignore malformed storage and fall back to demo lenders.
-  }
-
-  return mergeLendersWithFlow(defaultLenders.map((item, index) => normalizeLenderRecord(item, index + 1)), loans);
+  return mergeLendersWithFlow(readCachedLenders(), loans);
 }
 
 function formatDate(value) {
@@ -94,10 +69,35 @@ function LenderLogins() {
   const [loanFlowFilter, setLoanFlowFilter] = useState('all');
   const [logins, setLogins] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingLender, setLoadingLender] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
+    let mounted = true;
+
+    const loadLenders = async () => {
+      try {
+        const nextLoans = readStoredLoans();
+        const nextLenders = await syncLendersCache();
+        if (mounted) {
+          setAllLoans(nextLoans);
+          setLenders(mergeLendersWithFlow(nextLenders, nextLoans));
+        }
+      } catch (loadError) {
+        if (mounted) {
+          setAllLoans(readStoredLoans());
+          setLenders(readStoredLenders());
+        }
+      } finally {
+        if (mounted) {
+          setLoadingLender(false);
+        }
+      }
+    };
+
+    loadLenders();
+
     const syncData = (event) => {
       const key = event?.detail?.key || event?.key;
       if (!key || key === 'lenders') {
@@ -115,6 +115,7 @@ function LenderLogins() {
     window.addEventListener('app:storage-changed', syncData);
 
     return () => {
+      mounted = false;
       window.removeEventListener('storage', syncData);
       window.removeEventListener('focus', syncData);
       window.removeEventListener('app:storage-changed', syncData);
@@ -313,7 +314,7 @@ function LenderLogins() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading || loadingLender ? (
                 <tr>
                   <td colSpan={6} className="empty-table-state">Loading lender logins...</td>
                 </tr>

@@ -30,6 +30,8 @@ describe('Auth and basic APIs', () => {
   let token;
   let customerId;
   let loanId;
+  let auditorId;
+  let auditorToken;
 
   test('register -> login -> create customer -> create loan -> fetch lists', async () => {
     const setupRes = await request(app)
@@ -68,6 +70,7 @@ describe('Auth and basic APIs', () => {
       .expect(201);
 
     expect(createUserRes.body.data.username).toBe('auditor');
+    auditorId = createUserRes.body.data._id;
 
     const custRes = await request(app)
       .post('/api/customers')
@@ -100,5 +103,72 @@ describe('Auth and basic APIs', () => {
 
     expect(Array.isArray(customersList.body.data)).toBe(true);
     expect(customersList.body.data.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('can create and fetch enquiries and leads', async () => {
+    const enquiryRes = await request(app)
+      .post('/api/enquiries')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        customerId,
+        customerName: 'John Doe',
+        email: 'john@example.com',
+        phone: '9999999999',
+        message: 'Need a rate quote',
+      })
+      .expect(201);
+
+    expect(enquiryRes.body.data.customerId).toBe(customerId);
+
+    const enquiriesList = await request(app)
+      .get('/api/enquiries')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(enquiriesList.body.data)).toBe(true);
+    expect(enquiriesList.body.data.length).toBeGreaterThanOrEqual(1);
+
+    const leadRes = await request(app)
+      .post('/api/leads')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        businessName: 'Acme Traders',
+        contactPerson: 'Priya',
+        primaryPhone: '8888888888',
+        city: 'Mumbai',
+        sourcedBy: 'Website',
+        loanType: 'Business Loans',
+      })
+      .expect(201);
+
+    expect(leadRes.body.data.businessName).toBe('Acme Traders');
+
+    const leadsList = await request(app)
+      .get('/api/leads')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(leadsList.body.data)).toBe(true);
+    expect(leadsList.body.data.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('deleted users cannot keep using an old token', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'auditor', password: 'password123' })
+      .expect(200);
+
+    auditorToken = loginRes.body.token;
+    expect(auditorToken).toBeDefined();
+
+    await request(app)
+      .delete(`/api/users/${auditorId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(401);
   });
 });

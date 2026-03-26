@@ -6,42 +6,20 @@ import { LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
 import {
   buildLenderInsight,
   formatCurrency,
-  hasLinkedLenderCases,
   mergeLendersWithFlow,
   normalizeLenderName,
   readStoredLoans,
-  renameLenderInLoans,
 } from '../utils/lenderFlow';
-
-const defaultLenders = [
-  { id: 1, name: 'HDFC BANK', image: '', createdAt: '2026-02-07' },
-  { id: 2, name: 'ICICI BANK', image: '', createdAt: '2026-02-06' },
-];
-
-function normalizeLenderRecord(item, fallbackId) {
-  const createdValue = item?.createdAt || item?.created_at || new Date().toISOString().slice(0, 10);
-  const parsedDate = new Date(createdValue);
-  return {
-    id: item?.id ?? item?._id ?? fallbackId,
-    name: String(item?.name || `Lender ${fallbackId}`).trim(),
-    image: item?.image || '',
-    createdAt: Number.isNaN(parsedDate.getTime()) ? String(createdValue) : parsedDate.toISOString().slice(0, 10),
-    status: item?.status || 'Inactive',
-  };
-}
-
-function readStoredLenders(loans = readStoredLoans()) {
-  try {
-    const saved = JSON.parse(localStorage.getItem('lenders') || 'null');
-    if (Array.isArray(saved) && saved.length) {
-      return mergeLendersWithFlow(saved.map((item, index) => normalizeLenderRecord(item, index + 1)), loans);
-    }
-  } catch (error) {
-    // Ignore malformed storage and fall back to demo lenders.
-  }
-
-  return mergeLendersWithFlow(defaultLenders.map((item, index) => normalizeLenderRecord(item, index + 1)), loans);
-}
+import {
+  createLenderRecord,
+  readCachedLenders,
+  syncLendersCache,
+  updateLenderRecord,
+} from '../utils/lendersData';
+import {
+  updateLoanRecord,
+  writeCachedLoans,
+} from '../utils/crmData';
 
 function formatDate(value) {
   const parsed = new Date(value);
@@ -102,10 +80,16 @@ function formatProductLabel(value) {
   }
 }
 
+function readStoredLenders(loans = readStoredLoans()) {
+  return mergeLendersWithFlow(readCachedLenders(), loans);
+}
+
 function Lenders() {
   const navigate = useNavigate();
   const [lenders, setLenders] = useState(() => readStoredLenders());
   const [allLoans, setAllLoans] = useState(() => readStoredLoans());
+  const [loadingLenders, setLoadingLenders] = useState(true);
+  const [pageError, setPageError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [flowFilter, setFlowFilter] = useState('all');
@@ -123,6 +107,33 @@ function Lenders() {
   const [previewFlowFilter, setPreviewFlowFilter] = useState('all');
 
   useEffect(() => {
+    let mounted = true;
+
+    const loadLenders = async () => {
+      try {
+        setLoadingLenders(true);
+        setPageError('');
+        const nextLoans = readStoredLoans();
+        const nextLenders = await syncLendersCache();
+        if (mounted) {
+          setAllLoans(nextLoans);
+          setLenders(mergeLendersWithFlow(nextLenders, nextLoans));
+        }
+      } catch (error) {
+        if (mounted) {
+          setAllLoans(readStoredLoans());
+          setLenders(readStoredLenders());
+          setPageError(error.message || 'Failed to load lenders.');
+        }
+      } finally {
+        if (mounted) {
+          setLoadingLenders(false);
+        }
+      }
+    };
+
+    loadLenders();
+
     const syncData = (event) => {
       const key = event?.detail?.key || event?.key;
       if (!key || key === 'lenders') {
@@ -143,34 +154,12 @@ function Lenders() {
     window.addEventListener('app:storage-changed', syncData);
 
     return () => {
+      mounted = false;
       window.removeEventListener('storage', syncData);
       window.removeEventListener('focus', syncData);
       window.removeEventListener('app:storage-changed', syncData);
     };
   }, [allLoans]);
-
-  const persistLenders = (nextLenders) => {
-    const syncedLenders = mergeLendersWithFlow(nextLenders, allLoans);
-    setLenders(syncedLenders);
-    try {
-      localStorage.setItem('lenders', JSON.stringify(syncedLenders));
-      window.dispatchEvent(new CustomEvent('app:storage-changed', { detail: { key: 'lenders' } }));
-    } catch (error) {
-      // Ignore storage failures and keep UI responsive.
-    }
-  };
-
-  useEffect(() => {
-    const syncedLenders = readStoredLenders(allLoans);
-    if (JSON.stringify(syncedLenders) !== JSON.stringify(lenders)) {
-      setLenders(syncedLenders);
-      try {
-        localStorage.setItem('lenders', JSON.stringify(syncedLenders));
-      } catch (error) {
-        // Ignore storage failures and keep UI responsive.
-      }
-    }
-  }, [allLoans, lenders]);
 
   const lenderInsights = useMemo(() => lenders.map((lender) => {
     const insight = buildLenderInsight(lender, allLoans);
@@ -292,13 +281,19 @@ function Lenders() {
     setPreviewProduct('all');
     setPreviewFlowFilter('all');
 
-    const { data, warning } = await fetchLenderLogins(lender.id);
-    setPreviewLogins(data || []);
-    setPreviewNotice(warning || '');
-    setPreviewLoading(false);
+    try {
+      const { data, warning } = await fetchLenderLogins(lender.id);
+      setPreviewLogins(data || []);
+      setPreviewNotice(warning || '');
+    } catch (error) {
+      setPreviewLogins([]);
+      setPreviewNotice(error.message || 'Failed to load lender logins.');
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
-  const saveUpdate = (e) => {
+  const saveUpdate = async (e) => {
     e.preventDefault();
     if (!selectedLender) {
       return;
@@ -313,61 +308,64 @@ function Lenders() {
       return;
     }
 
-    let nextLoansState = allLoans;
-    if (previousName !== nextName) {
-      nextLoansState = renameLenderInLoans(previousName, nextName, allLoans);
-      setAllLoans(nextLoansState);
+    try {
+      setPageError('');
+      let nextLoansState = allLoans;
+
+      if (previousName !== nextName) {
+        const relatedLoans = allLoans.filter((loan) => normalizeLenderName(loan.lenderName) === normalizeLenderName(previousName));
+        const renamedLoans = await Promise.all(
+          relatedLoans.map((loan) => updateLoanRecord(loan.id, { lenderName: nextName }))
+        );
+        const byId = new Map(renamedLoans.map((loan) => [loan.id, loan]));
+        nextLoansState = allLoans.map((loan) => byId.get(loan.id) || loan);
+        setAllLoans(nextLoansState);
+        writeCachedLoans(nextLoansState);
+      }
+
+      await updateLenderRecord(selectedLender.id, {
+        name: nextName,
+        image: editValues.image.trim(),
+      });
+      const nextLenders = await syncLendersCache();
+      setLenders(mergeLendersWithFlow(nextLenders, nextLoansState));
+      closeUpdateModal();
+    } catch (error) {
+      setPageError(error.message || 'Failed to update lender.');
     }
-
-    const nextLenders = lenders.map((item) => (
-      item.id === selectedLender.id
-        ? {
-            ...item,
-            name: nextName,
-            image: editValues.image.trim(),
-          }
-        : item
-    ));
-
-    persistLenders(mergeLendersWithFlow(nextLenders, nextLoansState));
-    closeUpdateModal();
   };
 
-  const addLender = (e) => {
+  const addLender = async (e) => {
     e.preventDefault();
     const name = newLender.name.trim();
     if (!name) {
       return;
     }
 
-    if (!hasLinkedLenderCases(name, allLoans)) {
-      window.alert('Only lenders already linked to a loan in the CRM flow can be kept in this section.');
-      return;
-    }
-
     const duplicate = lenders.find((item) => normalizeLenderName(item.name) === normalizeLenderName(name));
-    if (duplicate) {
-      const nextLenders = lenders.map((item) => (
-        item.id === duplicate.id
-          ? { ...item, image: newLender.image.trim() || item.image }
-          : item
-      ));
-      persistLenders(nextLenders);
+    try {
+      setPageError('');
+      if (duplicate) {
+        await updateLenderRecord(duplicate.id, {
+          name: duplicate.name,
+          image: newLender.image.trim() || duplicate.image,
+          status: duplicate.status,
+        });
+      } else {
+        await createLenderRecord({
+          name: name.toUpperCase(),
+          image: newLender.image.trim(),
+          status: 'Inactive',
+        });
+      }
+
+      const nextLenders = await syncLendersCache();
+      setLenders(mergeLendersWithFlow(nextLenders, allLoans));
       setShowAdd(false);
       setNewLender({ name: '', image: '' });
-      return;
+    } catch (error) {
+      setPageError(error.message || 'Failed to save lender.');
     }
-
-    const id = lenders.length ? Math.max(...lenders.map((item) => Number(item.id) || 0)) + 1 : 1;
-    const createdAt = new Date().toISOString().slice(0, 10);
-    const nextLenders = [
-      { id, name: name.toUpperCase(), image: newLender.image.trim(), createdAt },
-      ...lenders,
-    ];
-
-    persistLenders(nextLenders);
-    setShowAdd(false);
-    setNewLender({ name: '', image: '' });
   };
 
   return (
@@ -379,6 +377,8 @@ function Lenders() {
         </div>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>+ Add Lender</button>
       </div>
+
+      {pageError ? <div className="error-banner">{pageError}</div> : null}
 
       <div className="lender-stats-grid">
         <div className="lender-stat-card">
@@ -454,8 +454,12 @@ function Lenders() {
               <th>Quick Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredLenders.length === 0 ? (
+            <tbody>
+            {loadingLenders ? (
+              <tr>
+                <td colSpan={12} className="empty-table-state">Loading lenders...</td>
+              </tr>
+            ) : filteredLenders.length === 0 ? (
               <tr>
                 <td colSpan={12} className="empty-table-state">No lenders match the selected flow filters.</td>
               </tr>

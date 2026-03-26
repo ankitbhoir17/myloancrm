@@ -11,6 +11,7 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
+  const [setupStatusError, setSetupStatusError] = useState('');
   const navigate = useNavigate();
   const { login, register, checkSetupStatus } = useAuth();
 
@@ -22,10 +23,12 @@ function Login() {
         const requiresSetup = await checkSetupStatus();
         if (isMounted) {
           setSetupRequired(requiresSetup);
+          setSetupStatusError('');
         }
       } catch (err) {
         if (isMounted) {
           setSetupRequired(false);
+          setSetupStatusError('Unable to verify setup status right now. If this is a fresh install, check that the backend and database are running.');
         }
       }
     };
@@ -112,6 +115,7 @@ function Login() {
               required
             />
           </div>
+          {setupStatusError ? <div className="error-message">{setupStatusError}</div> : null}
           {error ? <div className="error-message">{error}</div> : null}
           <button type="submit" className="login-btn" disabled={loading}>
             {loading ? (setupRequired ? 'Creating Superuser...' : 'Signing in...') : (setupRequired ? 'Create Superuser' : 'Sign In')}

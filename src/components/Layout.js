@@ -252,21 +252,16 @@ function Layout() {
     { to: '/customers', label: 'Customers', iconKey: 'customers', toneClass: 'tone-emerald' },
     { to: '/recycle-bin', label: 'Recycle Bin', iconKey: 'recycle', toneClass: 'tone-rose' },
     { to: '/enquiries', label: 'Enquiries', iconKey: 'enquiries', toneClass: 'tone-violet' },
+    { to: '/leads', label: 'Leads', iconKey: 'reports', toneClass: 'tone-cyan' },
   ];
 
   const superuserItems = [
     { to: '/activities', label: 'Activities', iconKey: 'activities', toneClass: 'tone-teal' },
     { to: '/users', label: 'Users', iconKey: 'users', toneClass: 'tone-indigo' },
     { to: '/lenders', label: 'Lenders', iconKey: 'lenders', toneClass: 'tone-gold' },
-    { to: '/reports', label: 'Reports', iconKey: 'reports', toneClass: 'tone-cyan' },
-    { to: '/accounting', label: 'Accounting', iconKey: 'accounting', toneClass: 'tone-orange' },
-    { to: '/integrations', label: 'Integrations', iconKey: 'integrations', toneClass: 'tone-violet' },
-    { to: '/settings', label: 'Settings', iconKey: 'settings', toneClass: 'tone-slate' },
-    { to: '/knowledge', label: 'Knowledge Hub', iconKey: 'knowledge', toneClass: 'tone-pink' },
   ];
 
   const footerItems = [
-    { to: '/hrm', label: 'HRM', iconKey: 'hrm', toneClass: 'tone-emerald' },
     { to: '/roi', label: 'ROI Calculators', iconKey: 'roi', toneClass: 'tone-orange' },
     { to: '/backup', label: 'Backup Center', iconKey: 'backup', toneClass: 'tone-cyan' },
   ];

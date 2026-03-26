@@ -5,6 +5,14 @@ import {
   syncCustomersCache,
   syncLoansCache,
 } from './crmData';
+import {
+  createEnquiryRecord,
+  syncEnquiriesCache,
+} from './enquiriesData';
+import {
+  createLeadRecord,
+  syncLeadsCache,
+} from './leadsData';
 import { deleteRecycleBinItem, restoreRecycleBinItem } from './recycleBin';
 
 function normalizeUserSnapshot(user) {
@@ -19,6 +27,17 @@ function normalizeUserSnapshot(user) {
   };
 }
 
+function withRestoreId(item, recordId) {
+  if (/^[0-9a-fA-F]{24}$/.test(String(recordId || ''))) {
+    return {
+      ...item,
+      _id: recordId,
+    };
+  }
+
+  return item;
+}
+
 export async function restoreDeletedEntry(entry, options = {}) {
   if (!entry) {
     throw new Error('Recycle bin entry not found.');
@@ -26,23 +45,31 @@ export async function restoreDeletedEntry(entry, options = {}) {
 
   switch (entry.entityType) {
     case 'customers': {
-      const restoredCustomer = await createCustomerRecord({
-        ...entry.item,
-        _id: entry.recordId,
-      });
+      const restoredCustomer = await createCustomerRecord(withRestoreId(entry.item, entry.recordId));
       await syncCustomersCache();
       deleteRecycleBinItem(entry.entryId);
       return restoredCustomer;
     }
 
     case 'loans': {
-      const restoredLoan = await createLoanRecord({
-        ...entry.item,
-        _id: entry.recordId,
-      });
+      const restoredLoan = await createLoanRecord(withRestoreId(entry.item, entry.recordId));
       await syncLoansCache();
       deleteRecycleBinItem(entry.entryId);
       return restoredLoan;
+    }
+
+    case 'enquiries': {
+      const restoredEnquiry = await createEnquiryRecord(withRestoreId(entry.item, entry.recordId));
+      await syncEnquiriesCache();
+      deleteRecycleBinItem(entry.entryId);
+      return restoredEnquiry;
+    }
+
+    case 'leads': {
+      const restoredLead = await createLeadRecord(withRestoreId(entry.item, entry.recordId));
+      await syncLeadsCache();
+      deleteRecycleBinItem(entry.entryId);
+      return restoredLead;
     }
 
     case 'users': {

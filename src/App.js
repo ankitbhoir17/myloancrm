@@ -19,7 +19,6 @@ import RoiCalculator from './pages/RoiCalculator';
 import BackupCenter from './pages/BackupCenter';
 import Layout from './components/Layout';
 import './App.css';
-
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
   if (!user) {

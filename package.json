@@ -26,9 +26,11 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "server": "node backend/server.js",
+    "server:local": "node backend/scripts/startLocalServer.js",
     "dev": "nodemon backend/server.js",
     "test:server": "jest --runInBand --config jest.server.config.js",
-    "seed": "node backend/scripts/seed.js"
+    "seed": "node backend/scripts/seed.js",
+    "recover:superuser": "node backend/scripts/recoverSuperuser.js"
   },
   "browserslist": {
     "production": [
