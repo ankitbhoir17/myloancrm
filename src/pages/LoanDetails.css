@@ -1,0 +1,289 @@
+.loan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.back-link {
+  color: #1a73e8;
+  text-decoration: none;
+  font-size: 14px;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.details-header h1 {
+  margin: 0;
+  color: #1a1f36;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.details-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.details-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.details-card h2 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  color: #1a1f36;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-item label {
+  color: #666;
+  font-size: 13px;
+}
+
+.info-item span {
+  color: #1a1f36;
+  font-weight: 500;
+}
+
+.customer-link {
+  color: #1a73e8;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.customer-link:hover {
+  text-decoration: underline;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.summary-item {
+  text-align: center;
+}
+
+.summary-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1f36;
+}
+
+.summary-label {
+  color: #666;
+  font-size: 13px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #34a853;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 24px;
+  bottom: -16px;
+  width: 2px;
+  background: #e0e0e0;
+}
+
+.timeline-item:last-child::before {
+  display: none;
+}
+
+.timeline-item.completed::before {
+  background: #34a853;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.timeline-item.completed .timeline-dot {
+  background: #34a853;
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.timeline-title {
+  color: #1a1f36;
+  font-weight: 500;
+}
+
+.timeline-date {
+  color: #666;
+  font-size: 13px;
+}
+
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.doc-icon {
+  font-size: 20px;
+}
+
+.doc-name {
+  flex: 1;
+  font-weight: 500;
+  color: #1a1f36;
+}
+
+.doc-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.doc-status.status-verified {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.doc-status.status-pending {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.emi-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.emi-table th,
+.emi-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.emi-table th {
+  color: #666;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-approved, .status-paid {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-pending {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.status-active {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.status-disbursed {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.status-rejected {
+  background: #ffebee;
+  color: #c62828;
+}
+
+@media (max-width: 768px) {
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-stats {
+    grid-template-columns: 1fr;
+  }
+}

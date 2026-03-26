@@ -1,0 +1,15 @@
+.customer-select-root { position: relative; }
+.customer-select-root input[type="text"],
+.customer-select-trigger { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; background: #fff; }
+.customer-select-trigger { text-align: left; cursor: pointer; }
+.customer-suggestions { position: absolute; left: 0; right: 0; background: #fff; border: 1px solid #e6e6e6; box-shadow: 0 6px 18px rgba(0,0,0,0.06); max-height: 260px; overflow: auto; margin-top: 6px; z-index: 40; list-style: none; padding: 6px 0; }
+.customer-suggestions.list-mode { max-height: 300px; }
+.suggestion-item { display: flex; align-items: center; padding: 8px 10px; cursor: pointer; }
+.suggestion-item:hover, .suggestion-item.highlight { background: #f5f7fb; }
+.s-left { width: 56px; color: #666; font-size: 12px; }
+.s-main { flex: 1; display: flex; flex-direction: column; }
+.s-name { font-weight: 600; }
+.s-email { font-size: 12px; color: #666; }
+.s-meta { width: 140px; text-align: right; font-size: 12px; color: #888; }
+.suggestion-header { font-size: 12px; color: #777; padding: 6px 10px; font-weight: 600; border-bottom: 1px dashed #eee; }
+.suggestion-empty { padding: 10px; color: #999; }
