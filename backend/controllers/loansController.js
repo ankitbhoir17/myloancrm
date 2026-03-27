@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
 const Loan = require('../models/Loan');
+const { toOwnedPayload, withOwnedRecords } = require('../utils/ownership');
 
 function formatDateOnly(value) {
   if (!value) {
@@ -35,14 +36,14 @@ function resolveCustomerId(payload = {}, existingLoan = null) {
   return payload.customerId || payload.customer || existingLoan?.customer || null;
 }
 
-async function resolveCustomer(payload = {}, existingLoan = null) {
+async function resolveCustomer(payload = {}, req, existingLoan = null) {
   const customerId = resolveCustomerId(payload, existingLoan);
   if (!customerId) {
     return null;
   }
 
   try {
-    return await Customer.findById(customerId);
+    return await Customer.findOne(withOwnedRecords(req, { _id: customerId }));
   } catch (error) {
     return null;
   }
@@ -61,6 +62,7 @@ function toPublicLoan(loan) {
   return {
     id: loan._id.toString(),
     _id: loan._id.toString(),
+    createdBy: loan.createdBy ? String(loan.createdBy) : '',
     loanId: normalizeLoanId(loan.loanId),
     customerId: customerId ? customerId.toString() : '',
     customer: customerName,
@@ -92,12 +94,12 @@ function toPublicLoan(loan) {
   };
 }
 
-function buildLoanPayload(payload = {}, existingLoan = null, customer = null) {
+function buildLoanPayload(req, payload = {}, existingLoan = null, customer = null) {
   const amount = Number(payload.amount ?? existingLoan?.amount ?? 0);
   const termMonths = resolveTermMonths(payload, existingLoan);
   const date = String(payload.date ?? existingLoan?.date ?? payload.appliedDate ?? existingLoan?.appliedDate ?? formatDateOnly(new Date())).trim();
 
-  return {
+  return toOwnedPayload(req, {
     ...(payload._id || payload.id ? { _id: payload._id || payload.id } : {}),
     loanId: normalizeLoanId(payload.loanId ?? existingLoan?.loanId),
     customer: customer?._id || existingLoan?.customer,
@@ -129,7 +131,7 @@ function buildLoanPayload(payload = {}, existingLoan = null, customer = null) {
       ...(payload.metadata || {}),
       customerName: payload.customer || buildCustomerName(customer) || existingLoan?.metadata?.customerName || '',
     },
-  };
+  }, existingLoan);
 }
 
 async function findExistingLoanByLoanId(loanId, excludeLoanId = null) {
@@ -157,12 +159,12 @@ exports.createLoan = async (req, res, next) => {
       return res.status(400).json({ message: 'Loan ID already exists.' });
     }
 
-    const customer = await resolveCustomer(req.body);
+    const customer = await resolveCustomer(req.body, req);
     if (!customer) {
       return res.status(400).json({ message: 'A valid customer is required.' });
     }
 
-    const loan = await Loan.create(buildLoanPayload(req.body, null, customer));
+    const loan = await Loan.create(buildLoanPayload(req, req.body, null, customer));
     await loan.populate('customer');
 
     res.status(201).json({ success: true, data: toPublicLoan(loan) });
@@ -173,7 +175,7 @@ exports.createLoan = async (req, res, next) => {
 
 exports.getLoans = async (req, res, next) => {
   try {
-    const loans = await Loan.find().populate('customer').sort('-createdAt');
+    const loans = await Loan.find(withOwnedRecords(req)).populate('customer').sort('-createdAt');
     res.json({ success: true, data: loans.map(toPublicLoan) });
   } catch (err) {
     next(err);
@@ -182,7 +184,7 @@ exports.getLoans = async (req, res, next) => {
 
 exports.getLoan = async (req, res, next) => {
   try {
-    const loan = await Loan.findById(req.params.id).populate('customer');
+    const loan = await Loan.findOne(withOwnedRecords(req, { _id: req.params.id })).populate('customer');
     if (!loan) return res.status(404).json({ message: 'Not found' });
     res.json({ success: true, data: toPublicLoan(loan) });
   } catch (err) {
@@ -192,7 +194,7 @@ exports.getLoan = async (req, res, next) => {
 
 exports.updateLoan = async (req, res, next) => {
   try {
-    const loan = await Loan.findById(req.params.id).populate('customer');
+    const loan = await Loan.findOne(withOwnedRecords(req, { _id: req.params.id })).populate('customer');
     if (!loan) return res.status(404).json({ message: 'Not found' });
 
     const requestedLoanId = Object.prototype.hasOwnProperty.call(req.body, 'loanId')
@@ -210,12 +212,12 @@ exports.updateLoan = async (req, res, next) => {
       return res.status(400).json({ message: 'Loan ID already exists.' });
     }
 
-    const customer = await resolveCustomer(req.body, loan);
+    const customer = await resolveCustomer(req.body, req, loan);
     if (!customer) {
       return res.status(400).json({ message: 'A valid customer is required.' });
     }
 
-    loan.set(buildLoanPayload(req.body, loan, customer));
+    loan.set(buildLoanPayload(req, req.body, loan, customer));
     await loan.save();
     await loan.populate('customer');
 

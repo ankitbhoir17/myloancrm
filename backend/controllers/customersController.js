@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
 const Loan = require('../models/Loan');
+const { toOwnedPayload, withOwnedRecords } = require('../utils/ownership');
 
 function formatDateOnly(value) {
   if (!value) {
@@ -34,6 +35,7 @@ function toLoanSummary(loan) {
   return {
     id: loan._id.toString(),
     _id: loan._id.toString(),
+    createdBy: loan.createdBy ? String(loan.createdBy) : '',
     loanId: String(loan.loanId || '').trim(),
     type: loan.type || 'Personal',
     amount: Number(loan.amount || 0),
@@ -54,6 +56,7 @@ function toPublicCustomer(customer, summary = {}, relatedLoans = null) {
   return {
     id: customer._id.toString(),
     _id: customer._id.toString(),
+    createdBy: customer.createdBy ? String(customer.createdBy) : '',
     firstName: customer.firstName || '',
     lastName: customer.lastName || '',
     name: buildCustomerName(customer),
@@ -75,13 +78,13 @@ function toPublicCustomer(customer, summary = {}, relatedLoans = null) {
   };
 }
 
-async function buildLoanSummaryMap(customers) {
+async function buildLoanSummaryMap(req, customers) {
   const customerIds = customers.map((customer) => customer._id);
   if (customerIds.length === 0) {
     return new Map();
   }
 
-  const relatedLoans = await Loan.find({ customer: { $in: customerIds } });
+  const relatedLoans = await Loan.find(withOwnedRecords(req, { customer: { $in: customerIds } }));
   const summaryMap = new Map();
 
   relatedLoans.forEach((loan) => {
@@ -95,11 +98,11 @@ async function buildLoanSummaryMap(customers) {
   return summaryMap;
 }
 
-function buildCustomerPayload(payload = {}, existingCustomer = null) {
+function buildCustomerPayload(req, payload = {}, existingCustomer = null) {
   const { firstName, lastName } = splitName(payload);
   const createdAtFallback = existingCustomer?.createdAt || new Date();
 
-  return {
+  return toOwnedPayload(req, {
     ...(payload._id || payload.id ? { _id: payload._id || payload.id } : {}),
     firstName,
     lastName,
@@ -120,12 +123,12 @@ function buildCustomerPayload(payload = {}, existingCustomer = null) {
       ? payload.activities
       : (Array.isArray(existingCustomer?.activities) ? existingCustomer.activities : []),
     metadata: payload.metadata ?? existingCustomer?.metadata ?? {},
-  };
+  }, existingCustomer);
 }
 
 exports.createCustomer = async (req, res, next) => {
   try {
-    const customer = await Customer.create(buildCustomerPayload(req.body));
+    const customer = await Customer.create(buildCustomerPayload(req, req.body));
     res.status(201).json({ success: true, data: toPublicCustomer(customer) });
   } catch (err) {
     next(err);
@@ -134,8 +137,8 @@ exports.createCustomer = async (req, res, next) => {
 
 exports.getCustomers = async (req, res, next) => {
   try {
-    const customers = await Customer.find().sort('-createdAt');
-    const summaryMap = await buildLoanSummaryMap(customers);
+    const customers = await Customer.find(withOwnedRecords(req)).sort('-createdAt');
+    const summaryMap = await buildLoanSummaryMap(req, customers);
     res.json({
       success: true,
       data: customers.map((customer) => toPublicCustomer(customer, summaryMap.get(String(customer._id)))),
@@ -147,12 +150,12 @@ exports.getCustomers = async (req, res, next) => {
 
 exports.getCustomer = async (req, res, next) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findOne(withOwnedRecords(req, { _id: req.params.id }));
     if (!customer) {
       return res.status(404).json({ message: 'Not found' });
     }
 
-    const loans = await Loan.find({ customer: customer._id }).sort('-createdAt');
+    const loans = await Loan.find(withOwnedRecords(req, { customer: customer._id })).sort('-createdAt');
     res.json({ success: true, data: toPublicCustomer(customer, null, loans) });
   } catch (err) {
     next(err);
@@ -161,15 +164,15 @@ exports.getCustomer = async (req, res, next) => {
 
 exports.updateCustomer = async (req, res, next) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findOne(withOwnedRecords(req, { _id: req.params.id }));
     if (!customer) {
       return res.status(404).json({ message: 'Not found' });
     }
 
-    customer.set(buildCustomerPayload(req.body, customer));
+    customer.set(buildCustomerPayload(req, req.body, customer));
     await customer.save();
 
-    const loans = await Loan.find({ customer: customer._id }).sort('-createdAt');
+    const loans = await Loan.find(withOwnedRecords(req, { customer: customer._id })).sort('-createdAt');
     res.json({ success: true, data: toPublicCustomer(customer, null, loans) });
   } catch (err) {
     next(err);

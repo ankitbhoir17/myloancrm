@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const leadSchema = new mongoose.Schema(
   {
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     businessName: { type: String, trim: true, required: true },
     businessEntity: { type: String, trim: true, default: '' },
     contactPerson: { type: String, trim: true, default: '' },

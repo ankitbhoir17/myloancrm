@@ -32,6 +32,7 @@ describe('Auth and basic APIs', () => {
   let loanId;
   let enquiryId;
   let leadId;
+  let lenderId;
   let auditorId;
   let auditorToken;
 
@@ -163,6 +164,181 @@ describe('Auth and basic APIs', () => {
 
     expect(Array.isArray(leadsList.body.data)).toBe(true);
     expect(leadsList.body.data.length).toBeGreaterThanOrEqual(1);
+
+    const lenderRes = await request(app)
+      .post('/api/lenders')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Axis Bank',
+        status: 'Active',
+      })
+      .expect(201);
+
+    lenderId = lenderRes.body.data.id;
+
+    const loginRes = await request(app)
+      .post(`/api/lenders/${lenderId}/logins`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        leadName: 'John Doe Login',
+        surrogate: 'JD Home',
+        status: 'Done',
+        remarks: 'Created by superuser',
+        product: 'home',
+      })
+      .expect(201);
+
+    expect(loginRes.body.data.leadName).toBe('John Doe Login');
+  });
+
+  test('auditors can only view data created by themselves', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'auditor', password: 'password123' })
+      .expect(200);
+
+    auditorToken = loginRes.body.token;
+
+    const auditorCustomerRes = await request(app)
+      .post('/api/customers')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ firstName: 'Asha', lastName: 'Patil', email: 'asha@example.com' })
+      .expect(201);
+
+    const auditorCustomerId = auditorCustomerRes.body.data.id;
+
+    await request(app)
+      .post('/api/loans')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ loanId: 'AUD-INVALID', customer: customerId, amount: 3000, termMonths: 12 })
+      .expect(400);
+
+    const auditorLoanRes = await request(app)
+      .post('/api/loans')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({ loanId: 'AUD-001', customer: auditorCustomerId, amount: 6000, termMonths: 18 })
+      .expect(201);
+
+    const auditorEnquiryRes = await request(app)
+      .post('/api/enquiries')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        customerId: auditorCustomerId,
+        customerName: 'Asha Patil',
+        email: 'asha@example.com',
+        phone: '7777777777',
+        message: 'Need auditor scoped enquiry',
+      })
+      .expect(201);
+
+    const auditorLeadRes = await request(app)
+      .post('/api/leads')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        businessName: 'Auditor Traders',
+        contactPerson: 'Asha',
+        primaryPhone: '7777777777',
+        city: 'Pune',
+        sourcedBy: 'Referral',
+        loanType: 'Business Loans',
+      })
+      .expect(201);
+
+    const auditorLenderRes = await request(app)
+      .post('/api/lenders')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        name: 'Axis Bank',
+        status: 'Active',
+      })
+      .expect(201);
+
+    const auditorLenderId = auditorLenderRes.body.data.id;
+
+    const auditorLoginRes = await request(app)
+      .post(`/api/lenders/${auditorLenderId}/logins`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        leadName: 'Asha Login',
+        surrogate: 'Auditor Case',
+        status: 'Pending',
+        remarks: 'Created by auditor',
+        product: 'business',
+      })
+      .expect(201);
+
+    const customersList = await request(app)
+      .get('/api/customers')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(200);
+
+    expect(customersList.body.data).toHaveLength(1);
+    expect(customersList.body.data[0].id).toBe(auditorCustomerId);
+
+    const loansList = await request(app)
+      .get('/api/loans')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(200);
+
+    expect(loansList.body.data).toHaveLength(1);
+    expect(loansList.body.data[0].id).toBe(auditorLoanRes.body.data.id);
+
+    const enquiriesList = await request(app)
+      .get('/api/enquiries')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(200);
+
+    expect(enquiriesList.body.data).toHaveLength(1);
+    expect(enquiriesList.body.data[0].id).toBe(auditorEnquiryRes.body.data.id);
+
+    const leadsList = await request(app)
+      .get('/api/leads')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(200);
+
+    expect(leadsList.body.data).toHaveLength(1);
+    expect(leadsList.body.data[0].id).toBe(auditorLeadRes.body.data.id);
+
+    const lendersList = await request(app)
+      .get('/api/lenders')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(200);
+
+    expect(lendersList.body.data).toHaveLength(1);
+    expect(lendersList.body.data[0].id).toBe(auditorLenderId);
+
+    const lenderLogins = await request(app)
+      .get(`/api/lenders/${auditorLenderId}/logins`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(200);
+
+    expect(lenderLogins.body.data).toHaveLength(1);
+    expect(lenderLogins.body.data[0]._id).toBe(auditorLoginRes.body.data._id);
+
+    await request(app)
+      .get(`/api/customers/${customerId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(404);
+
+    await request(app)
+      .get(`/api/loans/${loanId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(404);
+
+    await request(app)
+      .get(`/api/enquiries/${enquiryId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(404);
+
+    await request(app)
+      .get(`/api/leads/${leadId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(404);
+
+    await request(app)
+      .get(`/api/lenders/${lenderId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(404);
   });
 
   test('non-superusers cannot delete core CRM data', async () => {

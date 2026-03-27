@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const loanSchema = new mongoose.Schema(
   {
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     loanId: { type: String, trim: true },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
     lenderName: { type: String, trim: true, default: '' },

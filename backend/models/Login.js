@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const loginSchema = new mongoose.Schema(
   {
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     lender: { type: mongoose.Schema.Types.ObjectId, ref: 'Lender', required: true },
     leadName: { type: String, required: true },
     surrogate: { type: String },

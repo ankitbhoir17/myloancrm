@@ -1,5 +1,6 @@
 const Lender = require('../models/Lender');
 const Login = require('../models/Login');
+const { toOwnedPayload, withOwnedRecords } = require('../utils/ownership');
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -18,6 +19,7 @@ function toPublicLender(lender, summary = {}) {
   return {
     id: lender._id.toString(),
     _id: lender._id.toString(),
+    createdBy: lender.createdBy ? String(lender.createdBy) : '',
     name: lender.name || '',
     image: lender.image || '',
     status: lender.status || 'Inactive',
@@ -29,13 +31,13 @@ function toPublicLender(lender, summary = {}) {
   };
 }
 
-async function buildLoginSummaryMap(lenders) {
+async function buildLoginSummaryMap(req, lenders) {
   if (!Array.isArray(lenders) || lenders.length === 0) {
     return new Map();
   }
 
   const lenderIds = lenders.map((item) => item._id);
-  const logins = await Login.find({ lender: { $in: lenderIds } }).sort('-loginDate');
+  const logins = await Login.find(withOwnedRecords(req, { lender: { $in: lenderIds } })).sort('-loginDate');
   const summaryMap = new Map();
 
   logins.forEach((login) => {
@@ -58,14 +60,14 @@ async function buildLoginSummaryMap(lenders) {
   return summaryMap;
 }
 
-async function findDuplicateByName(name, excludeId = '') {
+async function findDuplicateByName(req, name, excludeId = '') {
   if (!name) {
     return null;
   }
 
-  const filter = {
+  const filter = withOwnedRecords(req, {
     name: { $regex: `^${escapeRegExp(name)}$`, $options: 'i' },
-  };
+  });
   if (excludeId) {
     filter._id = { $ne: excludeId };
   }
@@ -80,17 +82,17 @@ exports.createLender = async (req, res, next) => {
       return res.status(400).json({ message: 'Lender name is required.' });
     }
 
-    const duplicate = await findDuplicateByName(name);
+    const duplicate = await findDuplicateByName(req, name);
     if (duplicate) {
       return res.status(400).json({ message: 'A lender with this name already exists.' });
     }
 
-    const lender = await Lender.create({
+    const lender = await Lender.create(toOwnedPayload(req, {
       name,
       image: String(req.body.image || '').trim(),
       status: String(req.body.status || 'Inactive').trim() || 'Inactive',
       metadata: req.body.metadata || {},
-    });
+    }));
 
     res.status(201).json({ success: true, data: toPublicLender(lender) });
   } catch (err) {
@@ -100,8 +102,8 @@ exports.createLender = async (req, res, next) => {
 
 exports.getLenders = async (req, res, next) => {
   try {
-    const lenders = await Lender.find().sort('-createdAt');
-    const summaryMap = await buildLoginSummaryMap(lenders);
+    const lenders = await Lender.find(withOwnedRecords(req)).sort('-createdAt');
+    const summaryMap = await buildLoginSummaryMap(req, lenders);
     res.json({
       success: true,
       data: lenders.map((lender) => toPublicLender(lender, summaryMap.get(String(lender._id)))),
@@ -113,12 +115,12 @@ exports.getLenders = async (req, res, next) => {
 
 exports.getLender = async (req, res, next) => {
   try {
-    const lender = await Lender.findById(req.params.id);
+    const lender = await Lender.findOne(withOwnedRecords(req, { _id: req.params.id }));
     if (!lender) {
       return res.status(404).json({ message: 'Not found' });
     }
 
-    const summaryMap = await buildLoginSummaryMap([lender]);
+    const summaryMap = await buildLoginSummaryMap(req, [lender]);
     res.json({ success: true, data: toPublicLender(lender, summaryMap.get(String(lender._id))) });
   } catch (err) {
     next(err);
@@ -127,7 +129,7 @@ exports.getLender = async (req, res, next) => {
 
 exports.updateLender = async (req, res, next) => {
   try {
-    const lender = await Lender.findById(req.params.id);
+    const lender = await Lender.findOne(withOwnedRecords(req, { _id: req.params.id }));
     if (!lender) {
       return res.status(404).json({ message: 'Not found' });
     }
@@ -137,7 +139,7 @@ exports.updateLender = async (req, res, next) => {
       return res.status(400).json({ message: 'Lender name is required.' });
     }
 
-    const duplicate = await findDuplicateByName(name, lender._id);
+    const duplicate = await findDuplicateByName(req, name, lender._id);
     if (duplicate) {
       return res.status(400).json({ message: 'A lender with this name already exists.' });
     }
@@ -148,7 +150,7 @@ exports.updateLender = async (req, res, next) => {
     lender.metadata = req.body.metadata ?? lender.metadata ?? {};
     await lender.save();
 
-    const summaryMap = await buildLoginSummaryMap([lender]);
+    const summaryMap = await buildLoginSummaryMap(req, [lender]);
     res.json({ success: true, data: toPublicLender(lender, summaryMap.get(String(lender._id))) });
   } catch (err) {
     next(err);

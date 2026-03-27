@@ -26,6 +26,13 @@ function dispatchStorageChanged(key) {
   }
 }
 
+function clearClientCaches() {
+  CLIENT_CACHE_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+    dispatchStorageChanged(key);
+  });
+}
+
 export function getApiUrl(path) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return API_BASE_URL ? `${API_BASE_URL}${normalizedPath}` : normalizedPath;
@@ -50,6 +57,14 @@ export function readStoredAuthUser() {
 
 export function saveAuthSession({ token, user }) {
   try {
+    const previousUser = readStoredAuthUser();
+    const previousUserId = previousUser?._id || previousUser?.id || '';
+    const nextUserId = user?._id || user?.id || '';
+
+    if (previousUserId && nextUserId && String(previousUserId) !== String(nextUserId)) {
+      clearClientCaches();
+    }
+
     if (typeof token === 'string') {
       localStorage.setItem(AUTH_TOKEN_KEY, token);
     }
@@ -84,10 +99,7 @@ export function clearAuthSession() {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem('user');
-    CLIENT_CACHE_KEYS.forEach((key) => {
-      localStorage.removeItem(key);
-      dispatchStorageChanged(key);
-    });
+    clearClientCaches();
     dispatchAuthChanged();
   } catch (error) {
     // Ignore storage failures and keep the UI usable.

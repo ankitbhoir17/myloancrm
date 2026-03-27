@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema(
   {
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, trim: true, default: '' },
     email: { type: String, trim: true, lowercase: true, default: '' },

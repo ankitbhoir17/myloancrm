@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
 const Enquiry = require('../models/Enquiry');
+const { toOwnedPayload, withOwnedRecords } = require('../utils/ownership');
 
 function formatDateOnly(value) {
   if (!value) {
@@ -14,13 +15,13 @@ function buildCustomerName(customer) {
   return [customer?.firstName, customer?.lastName].filter(Boolean).join(' ').trim();
 }
 
-async function resolveCustomer(customerId) {
+async function resolveCustomer(customerId, req) {
   if (!customerId) {
     return null;
   }
 
   try {
-    return await Customer.findById(customerId);
+    return await Customer.findOne(withOwnedRecords(req, { _id: customerId }));
   } catch (error) {
     return null;
   }
@@ -36,6 +37,7 @@ function toPublicEnquiry(enquiry) {
   return {
     id: enquiry._id.toString(),
     _id: enquiry._id.toString(),
+    createdBy: enquiry.createdBy ? String(enquiry.createdBy) : '',
     customerId: customerId ? customerId.toString() : '',
     customerName,
     email: enquiry.email || customer?.email || '',
@@ -48,13 +50,13 @@ function toPublicEnquiry(enquiry) {
   };
 }
 
-async function buildEnquiryPayload(payload = {}, existingEnquiry = null) {
-  const customer = await resolveCustomer(payload.customerId || payload.customer || existingEnquiry?.customer);
+async function buildEnquiryPayload(req, payload = {}, existingEnquiry = null) {
+  const customer = await resolveCustomer(payload.customerId || payload.customer || existingEnquiry?.customer, req);
   const dateFallback = existingEnquiry?.createdAt || new Date();
   const requestedCustomerName = String(payload.customerName ?? '').trim();
   const resolvedCustomerName = requestedCustomerName || buildCustomerName(customer) || existingEnquiry?.customerName || '';
 
-  return {
+  return toOwnedPayload(req, {
     ...(payload._id || payload.id ? { _id: payload._id || payload.id } : {}),
     customer: customer?._id || null,
     customerName: resolvedCustomerName,
@@ -64,12 +66,12 @@ async function buildEnquiryPayload(payload = {}, existingEnquiry = null) {
     status: String(payload.status ?? existingEnquiry?.status ?? 'New').trim() || 'New',
     date: String(payload.date ?? existingEnquiry?.date ?? formatDateOnly(dateFallback)).trim(),
     metadata: payload.metadata ?? existingEnquiry?.metadata ?? {},
-  };
+  }, existingEnquiry);
 }
 
 exports.createEnquiry = async (req, res, next) => {
   try {
-    const enquiry = await Enquiry.create(await buildEnquiryPayload(req.body));
+    const enquiry = await Enquiry.create(await buildEnquiryPayload(req, req.body));
     await enquiry.populate('customer');
     res.status(201).json({ success: true, data: toPublicEnquiry(enquiry) });
   } catch (error) {
@@ -79,7 +81,7 @@ exports.createEnquiry = async (req, res, next) => {
 
 exports.getEnquiries = async (req, res, next) => {
   try {
-    const enquiries = await Enquiry.find().populate('customer').sort('-createdAt');
+    const enquiries = await Enquiry.find(withOwnedRecords(req)).populate('customer').sort('-createdAt');
     res.json({ success: true, data: enquiries.map(toPublicEnquiry) });
   } catch (error) {
     next(error);
@@ -88,7 +90,7 @@ exports.getEnquiries = async (req, res, next) => {
 
 exports.getEnquiry = async (req, res, next) => {
   try {
-    const enquiry = await Enquiry.findById(req.params.id).populate('customer');
+    const enquiry = await Enquiry.findOne(withOwnedRecords(req, { _id: req.params.id })).populate('customer');
     if (!enquiry) {
       return res.status(404).json({ message: 'Not found' });
     }
@@ -101,12 +103,12 @@ exports.getEnquiry = async (req, res, next) => {
 
 exports.updateEnquiry = async (req, res, next) => {
   try {
-    const enquiry = await Enquiry.findById(req.params.id).populate('customer');
+    const enquiry = await Enquiry.findOne(withOwnedRecords(req, { _id: req.params.id })).populate('customer');
     if (!enquiry) {
       return res.status(404).json({ message: 'Not found' });
     }
 
-    enquiry.set(await buildEnquiryPayload(req.body, enquiry));
+    enquiry.set(await buildEnquiryPayload(req, req.body, enquiry));
     await enquiry.save();
     await enquiry.populate('customer');
 
