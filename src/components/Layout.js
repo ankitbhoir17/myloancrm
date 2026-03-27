@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getActivities, markActivityRead, markAllRead, syncActivities } from '../utils/activities';
 import { getLoanStatusTone, LOAN_STATUS_MENU_ITEMS } from '../utils/loanWorkflow';
@@ -174,12 +174,34 @@ function NavIcon({ iconKey, icon, toneClass = 'tone-slate', isStatus = false }) 
 
 function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 960);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activities, setActivities] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const nextIsMobile = window.innerWidth <= 960;
+      setIsMobile(nextIsMobile);
+      if (!nextIsMobile) {
+        setMobileSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isMobile, location.pathname]);
 
   useEffect(() => {
     if (!user) {
@@ -268,6 +290,21 @@ function Layout() {
     navigate('/login');
   };
 
+  const handleSidebarToggle = () => {
+    if (isMobile) {
+      setMobileSidebarOpen((current) => !current);
+      return;
+    }
+
+    setSidebarOpen((current) => !current);
+  };
+
+  const handleNavItemClick = () => {
+    if (isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  };
+
   const navItems = [
     { to: '/', label: 'Dashboard', iconKey: 'dashboard', toneClass: 'tone-sky', end: true },
     { to: '/loans', label: 'Loans', iconKey: 'loan', toneClass: 'tone-amber' },
@@ -289,12 +326,21 @@ function Layout() {
   ];
 
   return (
-    <div className={`layout ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+    <div className={`layout ${!isMobile && !sidebarOpen ? 'sidebar-collapsed' : ''} ${isMobile && mobileSidebarOpen ? 'mobile-sidebar-open' : ''}`}>
+      {isMobile && mobileSidebarOpen ? (
+        <button
+          type="button"
+          className="mobile-sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      ) : null}
+
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>MyLoanCRM</h2>
-          <button className="toggle-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            {sidebarOpen ? '<' : '>'}
+          <button className="toggle-btn" onClick={handleSidebarToggle} aria-label={isMobile ? 'Close navigation' : 'Toggle sidebar'}>
+            {isMobile ? 'x' : (sidebarOpen ? '<' : '>')}
           </button>
         </div>
 
@@ -304,6 +350,7 @@ function Layout() {
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={handleNavItemClick}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
             >
               <NavIcon iconKey={item.iconKey} toneClass={item.toneClass} />
@@ -315,6 +362,7 @@ function Layout() {
             <NavLink
               key={item.slug}
               to={`/loans/status/${item.slug}`}
+              onClick={handleNavItemClick}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
             >
               <NavIcon
@@ -332,6 +380,7 @@ function Layout() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  onClick={handleNavItemClick}
                   className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
                 >
                   <NavIcon iconKey={item.iconKey} toneClass={item.toneClass} />
@@ -345,6 +394,7 @@ function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={handleNavItemClick}
               className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
             >
               <NavIcon iconKey={item.iconKey} toneClass={item.toneClass} />
@@ -357,6 +407,16 @@ function Layout() {
       <div className="main-content">
         <header className="header">
           <div className="header-left">
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={() => setMobileSidebarOpen(true)}
+              aria-label="Open navigation"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
             <h1 className="page-title">Welcome back!</h1>
           </div>
 

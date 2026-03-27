@@ -358,3 +358,70 @@
   padding-top: 16px;
   border-top: 1px solid #eee;
 }
+
+@media (max-width: 900px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+
+  .search-input,
+  .filter-input,
+  .filter-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .action-buttons {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .filters,
+  .loans-table-container,
+  .modal form {
+    padding: 14px;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-width: none;
+    max-height: 88vh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modal-header {
+    padding: 16px 18px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions .btn-primary,
+  .modal-actions .btn-secondary {
+    width: 100%;
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

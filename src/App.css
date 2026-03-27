@@ -1,4 +1,27 @@
 /* App-level styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f5f7fa;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
 .app {
   min-height: 100vh;
 }
@@ -51,4 +74,11 @@
 ::selection {
   background: #1a73e8;
   color: white;
+}
+
+@media (max-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
 }

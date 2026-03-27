@@ -275,6 +275,15 @@
 }
 
 @media (max-width: 768px) {
+  .details-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .details-card {
+    padding: 18px;
+  }
+
   .details-grid {
     grid-template-columns: 1fr;
   }
@@ -285,5 +294,18 @@
   
   .summary-stats {
     grid-template-columns: 1fr;
+  }
+
+  .details-card.full-width {
+    overflow-x: auto;
+  }
+
+  .emi-table {
+    min-width: 520px;
+  }
+
+  .document-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 }

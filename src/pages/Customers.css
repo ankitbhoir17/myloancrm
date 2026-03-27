@@ -372,3 +372,74 @@
   padding-top: 16px;
   border-top: 1px solid #eee;
 }
+
+@media (max-width: 900px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+
+  .search-input,
+  .filter-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .customer-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .customers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-card,
+  .customer-card.full-width,
+  .loans-table-container {
+    padding: 16px;
+  }
+
+  .customer-header {
+    align-items: flex-start;
+  }
+
+  .customer-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    max-width: none;
+    max-height: 88vh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modal-header,
+  .modal form {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions .btn-primary,
+  .modal-actions .btn-secondary,
+  .customer-actions .btn-view,
+  .customer-actions .btn-edit,
+  .customer-actions .btn-delete {
+    width: 100%;
+  }
+}
