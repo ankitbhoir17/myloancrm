@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Lenders.css';
 import { fetchLenderLogins } from '../utils/lenderLogins';
-import { formatLoanCreatedAt, LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
+import { formatLoanCreatedAt, formatLoanCreatedDate, LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
 import {
   buildLenderInsight,
   formatCurrency,
@@ -244,7 +244,7 @@ function Lenders() {
         loan.status,
         loan.date,
         loan.createdAt,
-        formatLoanCreatedAt(loan),
+        formatLoanCreatedDate(loan),
       ]
         .filter(Boolean)
         .join(' ')

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './Lenders.css';
 import { fetchLenderLogins } from '../utils/lenderLogins';
-import { formatLoanCreatedAt, formatLoanDisplayId, LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
+import { formatLoanCreatedAt, formatLoanCreatedDate, formatLoanDisplayId, LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
 import { buildLenderInsight, formatCurrency, mergeLendersWithFlow, readStoredLoans } from '../utils/lenderFlow';
 import { readCachedLenders, syncLendersCache } from '../utils/lendersData';
 
@@ -199,7 +199,7 @@ function LenderLogins() {
       loan.type,
       loan.date,
       loan.createdAt,
-      formatLoanCreatedAt(loan),
+      formatLoanCreatedDate(loan),
     ]
       .filter(Boolean)
       .join(' ')

@@ -131,6 +131,15 @@ export function formatLoanCreatedAt(loan) {
   return loan?.date || '-';
 }
 
+export function formatLoanCreatedDate(loan) {
+  const parsed = getLoanCreatedDate(loan);
+  if (parsed) {
+    return parsed.toLocaleDateString();
+  }
+
+  return loan?.date || '-';
+}
+
 export function formatTenureYears(value) {
   const numeric = Number(value) || 0;
   if (!numeric) {

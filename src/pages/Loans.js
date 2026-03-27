@@ -7,6 +7,7 @@ import {
   DEFAULT_LOAN_STATUS,
   formatLoanDisplayId,
   formatLoanCreatedAt,
+  formatLoanCreatedDate,
   getLoanCreatedDate,
   formatTenureYears,
   LOAN_STATUS_FLOW,
@@ -141,14 +142,14 @@ function Loans() {
       loan.referenceName,
       loan.date,
       loan.createdAt,
-      formatLoanCreatedAt(loan),
+      formatLoanCreatedDate(loan),
     ]
       .filter(Boolean)
       .some((value) => value.toLowerCase().includes(searchValue));
     const matchesStatus = statusFilter === 'all' || loan.status === statusFilter;
     const createdAt = getLoanCreatedDate(loan);
-    const fromDate = createdFrom ? new Date(createdFrom) : null;
-    const toDate = createdTo ? new Date(createdTo) : null;
+    const fromDate = createdFrom ? new Date(`${createdFrom}T00:00:00`) : null;
+    const toDate = createdTo ? new Date(`${createdTo}T23:59:59.999`) : null;
     const matchesFrom = !fromDate || (createdAt && createdAt >= fromDate);
     const matchesTo = !toDate || (createdAt && createdAt <= toDate);
     return matchesSearch && matchesStatus && matchesFrom && matchesTo;
@@ -374,20 +375,20 @@ function Loans() {
       <div className="filters">
         <input
           type="text"
-          placeholder="Search by loan ID, customer, lender, refference, date, or time..."
+          placeholder="Search by loan ID, customer, lender, refference, or date..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
         />
         <input
-          type="datetime-local"
+          type="date"
           value={createdFrom}
           onChange={(e) => setCreatedFrom(e.target.value)}
           className="filter-input"
           aria-label="Created from"
         />
         <input
-          type="datetime-local"
+          type="date"
           value={createdTo}
           onChange={(e) => setCreatedTo(e.target.value)}
           className="filter-input"
