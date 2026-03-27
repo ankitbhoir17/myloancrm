@@ -63,7 +63,8 @@ function Login() {
     <div className="login-container">
       <div className="login-box">
         <div className="login-header">
-          <h1>MyLoanCRM</h1>
+          <div className="login-brand">AB Infotech softwares</div>
+          <h1>AedlxCRM</h1>
           <p>{setupRequired ? 'Create your first superuser account' : 'Loan Management System'}</p>
         </div>
         <form onSubmit={handleSubmit}>

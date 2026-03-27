@@ -21,6 +21,15 @@
   margin-bottom: 30px;
 }
 
+.login-brand {
+  color: #5f6b7a;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
 .login-header h1 {
   color: #1a73e8;
   font-size: 28px;
