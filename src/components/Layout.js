@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getActivities, markActivityRead, markAllRead } from '../utils/activities';
+import { getActivities, markActivityRead, markAllRead, syncActivities } from '../utils/activities';
 import { getLoanStatusTone, LOAN_STATUS_MENU_ITEMS } from '../utils/loanWorkflow';
 import { syncCrmCaches } from '../utils/crmData';
 import './Layout.css';
@@ -206,22 +206,44 @@ function Layout() {
   }, [user]);
 
   useEffect(() => {
-    if (user && user.role === 'superuser') {
-      setActivities(getActivities());
+    if (!user || user.role !== 'superuser') {
+      setActivities([]);
+      return undefined;
     }
 
+    let active = true;
+
+    const loadActivities = async () => {
+      try {
+        const nextActivities = await syncActivities();
+        if (active) {
+          setActivities(nextActivities);
+        }
+      } catch (error) {
+        if (active) {
+          setActivities(getActivities());
+        }
+      }
+    };
+
     const onChange = () => {
-      if (user && user.role === 'superuser') {
+      if (active) {
         setActivities(getActivities());
       }
     };
 
+    loadActivities();
     window.addEventListener('activities:changed', onChange);
     window.addEventListener('storage', onChange);
+    window.addEventListener('focus', loadActivities);
+    const pollTimer = window.setInterval(loadActivities, 15000);
 
     return () => {
+      active = false;
+      window.clearInterval(pollTimer);
       window.removeEventListener('activities:changed', onChange);
       window.removeEventListener('storage', onChange);
+      window.removeEventListener('focus', loadActivities);
     };
   }, [user]);
 
@@ -359,7 +381,7 @@ function Layout() {
                       <div className="notif-dropdown">
                         <div className="notif-header">
                           <strong>Recent Activities</strong>
-                          <button className="link-button" onClick={() => { markAllRead(); setActivities(getActivities()); }}>
+                          <button className="link-button" onClick={async () => { await markAllRead(); setActivities(getActivities()); }}>
                             Mark all read
                           </button>
                         </div>
@@ -376,7 +398,7 @@ function Layout() {
                                 <div className="notif-msg">{item.message}</div>
                                 <div className="notif-actions">
                                   {!item.read ? (
-                                    <button className="link-button" onClick={() => { markActivityRead(item.id); setActivities(getActivities()); }}>
+                                    <button className="link-button" onClick={async () => { await markActivityRead(item.id); setActivities(getActivities()); }}>
                                       Mark read
                                     </button>
                                   ) : null}

@@ -370,6 +370,36 @@ describe('Auth and basic APIs', () => {
       .expect(403);
   });
 
+  test('superusers can track auditor activities through the shared feed', async () => {
+    const createActivityRes = await request(app)
+      .post('/api/activities')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .send({
+        type: 'loan_created',
+        actor: 'auditor',
+        message: 'Auditor created a loan entry',
+        meta: { source: 'integration-test' },
+      })
+      .expect(201);
+
+    expect(createActivityRes.body.data.actor).toBe('auditor');
+
+    await request(app)
+      .get('/api/activities')
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(403);
+
+    const activitiesRes = await request(app)
+      .get('/api/activities')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(activitiesRes.body.data)).toBe(true);
+    expect(
+      activitiesRes.body.data.some((item) => item.message === 'Auditor created a loan entry' && item.actor === 'auditor')
+    ).toBe(true);
+  });
+
   test('deleted users cannot keep using an old token', async () => {
     expect(auditorToken).toBeDefined();
 

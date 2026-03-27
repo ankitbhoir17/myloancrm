@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getActivities, markActivityRead, markAllRead, removeActivity, clearActivities } from '../utils/activities';
+import {
+  clearActivities,
+  getActivities,
+  markActivityRead,
+  markAllRead,
+  removeActivity,
+  syncActivities,
+} from '../utils/activities';
 import './Customers.css';
 
 function Activities() {
@@ -11,13 +18,35 @@ function Activities() {
   const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
-    setActivities(getActivities());
+    let active = true;
+
+    const loadActivities = async () => {
+      try {
+        const nextActivities = await syncActivities();
+        if (active) {
+          setActivities(nextActivities);
+        }
+      } catch (error) {
+        if (active) {
+          setActivities(getActivities());
+        }
+      }
+    };
+
     const onChange = () => setActivities(getActivities());
+
+    loadActivities();
     window.addEventListener('activities:changed', onChange);
     window.addEventListener('storage', onChange);
+    window.addEventListener('focus', loadActivities);
+    const pollTimer = window.setInterval(loadActivities, 15000);
+
     return () => {
+      active = false;
+      window.clearInterval(pollTimer);
       window.removeEventListener('activities:changed', onChange);
       window.removeEventListener('storage', onChange);
+      window.removeEventListener('focus', loadActivities);
     };
   }, []);
 
@@ -44,20 +73,20 @@ function Activities() {
     return true;
   });
 
-  const handleMarkRead = (id) => {
-    markActivityRead(id);
+  const handleMarkRead = async (id) => {
+    await markActivityRead(id);
     setActivities(getActivities());
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!window.confirm('Delete this activity?')) return;
-    removeActivity(id);
+    await removeActivity(id);
     setActivities(getActivities());
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (!window.confirm('Clear all activities?')) return;
-    clearActivities();
+    await clearActivities();
     setActivities([]);
   };
 
@@ -82,7 +111,7 @@ function Activities() {
         <input placeholder="Filter by actor" value={filterActor} onChange={(e) => setFilterActor(e.target.value)} className="search-input" />
 
         <div style={{ marginLeft: 'auto' }}>
-          <button className="btn-secondary" onClick={() => { markAllRead(); setActivities(getActivities()); }}>Mark all read</button>
+          <button className="btn-secondary" onClick={async () => { await markAllRead(); setActivities(getActivities()); }}>Mark all read</button>
           <button className="btn-danger" onClick={handleClear} style={{ marginLeft: 8 }}>Clear all</button>
         </div>
       </div>

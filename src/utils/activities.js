@@ -1,83 +1,112 @@
-// Simple activity logging utility using localStorage
+import { apiFetch, cacheLocalSnapshot } from './api';
+
 const ACTIVITIES_KEY = 'app_activities';
+
+function dispatchActivitiesChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('activities:changed'));
+  }
+}
+
+function normalizeActivity(activity) {
+  return {
+    id: activity?._id || activity?.id || '',
+    type: activity?.type || 'general',
+    actor: activity?.actor || 'system',
+    message: activity?.message || activity?.note || '',
+    meta: activity?.meta || activity?.metadata || {},
+    read: Boolean(activity?.read),
+    date: activity?.date || activity?.createdAt || new Date().toISOString(),
+    createdAt: activity?.createdAt || activity?.date || '',
+    updatedAt: activity?.updatedAt || '',
+  };
+}
+
+function writeActivities(activities) {
+  cacheLocalSnapshot(ACTIVITIES_KEY, activities);
+  dispatchActivitiesChanged();
+}
 
 export function getActivities() {
   try {
     const raw = localStorage.getItem(ACTIVITIES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeActivity) : [];
+  } catch (error) {
     return [];
   }
 }
 
-export function addActivity({ type, actor = 'system', message = '', meta = {} }) {
+export async function syncActivities() {
+  const payload = await apiFetch('/api/activities');
+  const activities = Array.isArray(payload?.data) ? payload.data.map(normalizeActivity) : [];
+  writeActivities(activities);
+  return activities;
+}
+
+export async function addActivity({ type, actor = 'system', message = '', meta = {} }) {
   try {
-    const activities = getActivities();
-    const id = activities.length ? Math.max(...activities.map(a => a.id)) + 1 : 1;
-    const item = {
-      id,
-      type,
-      actor,
-      message,
-      meta,
-      read: false,
-      date: new Date().toISOString()
-    };
-    const next = [item, ...activities];
-    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(next));
-    // Dispatch storage event to notify other tabs/components (also listen to custom event optionally)
-    window.dispatchEvent(new Event('activities:changed'));
-    return item;
-  } catch (e) {
-    console.error('Failed to add activity', e);
+    const payload = await apiFetch('/api/activities', {
+      method: 'POST',
+      body: { type, actor, message, meta },
+    });
+
+    const activity = normalizeActivity(payload?.data);
+    const next = [activity, ...getActivities().filter((item) => item.id !== activity.id)];
+    writeActivities(next);
+    return activity;
+  } catch (error) {
+    console.error('Failed to add activity', error);
     return null;
   }
 }
 
-export function markActivityRead(id) {
+export async function markActivityRead(id) {
   try {
-    const activities = getActivities();
-    const next = activities.map(a => a.id === id ? { ...a, read: true } : a);
-    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event('activities:changed'));
+    const payload = await apiFetch(`/api/activities/${id}`, {
+      method: 'PUT',
+      body: { read: true },
+    });
+
+    const updated = normalizeActivity(payload?.data);
+    const next = getActivities().map((item) => (item.id === id ? updated : item));
+    writeActivities(next);
     return true;
-  } catch (e) {
+  } catch (error) {
     return false;
   }
 }
 
-export function markAllRead() {
+export async function markAllRead() {
   try {
-    const activities = getActivities();
-    const next = activities.map(a => ({ ...a, read: true }));
-    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event('activities:changed'));
+    const payload = await apiFetch('/api/activities/mark-all-read', { method: 'PATCH' });
+    const activities = Array.isArray(payload?.data) ? payload.data.map(normalizeActivity) : [];
+    writeActivities(activities);
     return true;
-  } catch (e) {
+  } catch (error) {
     return false;
   }
 }
 
-export function clearActivities() {
+export async function clearActivities() {
   try {
-    localStorage.removeItem(ACTIVITIES_KEY);
-    window.dispatchEvent(new Event('activities:changed'));
+    await apiFetch('/api/activities', { method: 'DELETE' });
+    writeActivities([]);
     return true;
-  } catch (e) {
+  } catch (error) {
     return false;
   }
 }
 
-export function removeActivity(id) {
+export async function removeActivity(id) {
   try {
-    const activities = getActivities();
-    const next = activities.filter(a => a.id !== id);
-    localStorage.setItem(ACTIVITIES_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event('activities:changed'));
+    await apiFetch(`/api/activities/${id}`, { method: 'DELETE' });
+    const next = getActivities().filter((item) => item.id !== id);
+    writeActivities(next);
     return true;
-  } catch (e) {
+  } catch (error) {
     return false;
   }
 }
 
-export default { getActivities, addActivity, markActivityRead, markAllRead, clearActivities };
+export default { getActivities, syncActivities, addActivity, markActivityRead, markAllRead, clearActivities };

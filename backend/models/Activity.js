@@ -6,8 +6,12 @@ const activitySchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     loan: { type: mongoose.Schema.Types.ObjectId, ref: 'Loan' },
-    note: { type: String },
-    metadata: { type: Object },
+    actor: { type: String, trim: true, default: 'system' },
+    message: { type: String, trim: true, default: '' },
+    note: { type: String, trim: true, default: '' },
+    read: { type: Boolean, default: false },
+    meta: { type: Object, default: {} },
+    metadata: { type: Object, default: {} },
   },
   { timestamps: true }
 );
