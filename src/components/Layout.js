@@ -272,8 +272,6 @@ function Layout() {
     { to: '/', label: 'Dashboard', iconKey: 'dashboard', toneClass: 'tone-sky', end: true },
     { to: '/loans', label: 'Loans', iconKey: 'loan', toneClass: 'tone-amber' },
     { to: '/customers', label: 'Customers', iconKey: 'customers', toneClass: 'tone-emerald' },
-    { to: '/enquiries', label: 'Enquiries', iconKey: 'enquiries', toneClass: 'tone-violet' },
-    { to: '/leads', label: 'Leads', iconKey: 'reports', toneClass: 'tone-cyan' },
   ];
 
   const superuserItems = [
