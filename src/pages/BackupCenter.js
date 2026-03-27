@@ -32,6 +32,19 @@ function BackupCenter() {
     };
   }, []);
 
+  if (!user || user.role !== 'superuser') {
+    return (
+      <div className="backup-page">
+        <div className="backup-hero">
+          <div>
+            <h1>Backup Center</h1>
+            <p>Access denied. Superuser only.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const handleDownload = () => {
     setDownloading(true);
     try {

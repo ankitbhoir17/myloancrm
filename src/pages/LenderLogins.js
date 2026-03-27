@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './Lenders.css';
 import { fetchLenderLogins } from '../utils/lenderLogins';
-import { LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
+import { formatLoanCreatedAt, formatLoanDisplayId, LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
 import { buildLenderInsight, formatCurrency, mergeLendersWithFlow, readStoredLoans } from '../utils/lenderFlow';
 import { readCachedLenders, syncLendersCache } from '../utils/lendersData';
 
@@ -197,6 +197,9 @@ function LenderLogins() {
       loan.referenceName,
       loan.status,
       loan.type,
+      loan.date,
+      loan.createdAt,
+      formatLoanCreatedAt(loan),
     ]
       .filter(Boolean)
       .join(' ')
@@ -368,7 +371,7 @@ function LenderLogins() {
                 <th>Type</th>
                 <th>Amount</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>Created At</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -382,12 +385,12 @@ function LenderLogins() {
                   const tone = flowInsight.flowBreakdown.find((item) => item.status === loan.status)?.tone || flowInsight.currentFlowTone;
                   return (
                     <tr key={loan.id}>
-                      <td>#{String(loan.id).padStart(4, '0')}</td>
+                      <td>{formatLoanDisplayId(loan)}</td>
                       <td>{loan.customer || '-'}</td>
                       <td>{loan.type || '-'}</td>
                       <td>{formatCurrency(loan.amount)}</td>
                       <td><span className={`flow-badge ${getFlowToneClass(tone)}`}>{loan.status}</span></td>
-                      <td>{formatDate(loan.date)}</td>
+                      <td>{formatLoanCreatedAt(loan)}</td>
                       <td>
                         <Link to={`/loans/${loan.id}`} className="table-link">Open Loan</Link>
                       </td>

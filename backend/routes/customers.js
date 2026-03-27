@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   createCustomer,
   getCustomers,
@@ -10,6 +10,6 @@ const {
 } = require('../controllers/customersController');
 
 router.route('/').get(protect, getCustomers).post(protect, createCustomer);
-router.route('/:id').get(protect, getCustomer).put(protect, updateCustomer).delete(protect, deleteCustomer);
+router.route('/:id').get(protect, getCustomer).put(protect, updateCustomer).delete(protect, authorize('superuser'), deleteCustomer);
 
 module.exports = router;

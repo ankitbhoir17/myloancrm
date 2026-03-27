@@ -91,10 +91,44 @@ export function normalizeLoanTenureYears(loan) {
 export function normalizeLoanRecord(loan) {
   return {
     ...loan,
+    loanId: String(loan?.loanId || '').trim(),
     status: normalizeLoanStatus(loan?.status),
     tenure: normalizeLoanTenureYears(loan),
     tenureUnit: 'years',
   };
+}
+
+export function formatLoanDisplayId(loan) {
+  const manualLoanId = String(loan?.loanId || '').trim();
+  if (manualLoanId) {
+    return manualLoanId;
+  }
+
+  const fallbackId = String(loan?.id || loan?._id || '').trim();
+  if (!fallbackId) {
+    return '-';
+  }
+
+  return `#${fallbackId.padStart(4, '0')}`;
+}
+
+export function getLoanCreatedDate(loan) {
+  const rawValue = loan?.createdAt || loan?.date || '';
+  if (!rawValue) {
+    return null;
+  }
+
+  const parsed = new Date(rawValue);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function formatLoanCreatedAt(loan) {
+  const parsed = getLoanCreatedDate(loan);
+  if (parsed) {
+    return parsed.toLocaleString();
+  }
+
+  return loan?.date || '-';
 }
 
 export function formatTenureYears(value) {

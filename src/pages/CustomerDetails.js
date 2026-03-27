@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { fetchCustomerRecord, readCachedCustomers, readCachedLoans } from '../utils/crmData';
+import { formatLoanCreatedAt, formatLoanDisplayId } from '../utils/loanWorkflow';
 import './CustomerDetails.css';
 
 function buildFallbackCustomer(id) {
@@ -18,10 +19,13 @@ function buildFallbackCustomer(id) {
       .filter((loan) => String(loan.customerId) === String(id))
       .map((loan) => ({
         id: loan.id,
+        loanId: loan.loanId || '',
         type: loan.type,
         amount: loan.amount,
         status: loan.status,
         emi: loan.emi,
+        date: loan.date || '',
+        createdAt: loan.createdAt || '',
       })),
     documents: matchedCustomer.documents || [],
     activities: matchedCustomer.activities || [],
@@ -182,17 +186,18 @@ function CustomerDetails() {
                 <th>Amount</th>
                 <th>EMI</th>
                 <th>Status</th>
+                <th>Created At</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {loans.length === 0 ? (
                 <tr>
-                  <td colSpan="6">No loans linked to this customer yet.</td>
+                  <td colSpan="7">No loans linked to this customer yet.</td>
                 </tr>
               ) : loans.map((loan) => (
                 <tr key={loan.id}>
-                  <td>#{loan.id.toString().padStart(4, '0')}</td>
+                  <td>{formatLoanDisplayId(loan)}</td>
                   <td>{loan.type}</td>
                   <td>₹{Number(loan.amount || 0).toLocaleString()}</td>
                   <td>{loan.emi > 0 ? `₹${Number(loan.emi).toLocaleString()}` : '-'}</td>
@@ -201,6 +206,7 @@ function CustomerDetails() {
                       {loan.status}
                     </span>
                   </td>
+                  <td>{formatLoanCreatedAt(loan)}</td>
                   <td>
                     <Link to={`/loans/${loan.id}`} className="action-link">View</Link>
                   </td>

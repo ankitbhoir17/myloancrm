@@ -5,6 +5,9 @@ import { addActivity } from '../utils/activities';
 import CustomerSelect from '../components/CustomerSelect';
 import {
   DEFAULT_LOAN_STATUS,
+  formatLoanDisplayId,
+  formatLoanCreatedAt,
+  getLoanCreatedDate,
   formatTenureYears,
   LOAN_STATUS_FLOW,
   getLoanStatusBySlug,
@@ -14,6 +17,7 @@ import { restoreDeletedEntry } from '../utils/recycleBinApi';
 import {
   createLoanRecord,
   deleteLoanRecord,
+  readCachedCustomers,
   readCachedLoans,
   syncLoansCache,
   updateLoanRecord,
@@ -22,6 +26,7 @@ import {
 import './Loans.css';
 
 const emptyLoanForm = {
+  loanId: '',
   customerId: '',
   customer: '',
   lenderName: '',
@@ -47,12 +52,16 @@ function Loans() {
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [pageError, setPageError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [createdFrom, setCreatedFrom] = useState('');
+  const [createdTo, setCreatedTo] = useState('');
   const [statusFilter, setStatusFilter] = useState(() => getLoanStatusBySlug(statusSlug) || 'all');
   const [showModal, setShowModal] = useState(false);
   const [editingLoanId, setEditingLoanId] = useState(null);
   const [newLoan, setNewLoan] = useState(emptyLoanForm);
+  const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
+  const canDelete = user?.role === 'superuser';
 
   const toastTimerRef = useRef(null);
   const [toast, setToast] = useState({
@@ -124,23 +133,38 @@ function Loans() {
 
   const filteredLoans = loans.filter((loan) => {
     const searchValue = searchTerm.toLowerCase();
-    const matchesSearch = [loan.customer, loan.lenderName, loan.referenceName]
+    const matchesSearch = [
+      loan.loanId,
+      loan.customer,
+      loan.lenderName,
+      loan.referenceName,
+      loan.date,
+      loan.createdAt,
+      formatLoanCreatedAt(loan),
+    ]
       .filter(Boolean)
       .some((value) => value.toLowerCase().includes(searchValue));
     const matchesStatus = statusFilter === 'all' || loan.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const createdAt = getLoanCreatedDate(loan);
+    const fromDate = createdFrom ? new Date(createdFrom) : null;
+    const toDate = createdTo ? new Date(createdTo) : null;
+    const matchesFrom = !fromDate || (createdAt && createdAt >= fromDate);
+    const matchesTo = !toDate || (createdAt && createdAt <= toDate);
+    return matchesSearch && matchesStatus && matchesFrom && matchesTo;
   });
 
   const closeModal = () => {
     setShowModal(false);
     setEditingLoanId(null);
     setNewLoan(emptyLoanForm);
+    setFormError('');
     setSaving(false);
   };
 
   const openCreateModal = () => {
     setEditingLoanId(null);
     setNewLoan(emptyLoanForm);
+    setFormError('');
     setShowModal(true);
   };
 
@@ -153,16 +177,32 @@ function Loans() {
     e.preventDefault();
     setSaving(true);
     setPageError('');
+    setFormError('');
 
-    if (!newLoan.customerId) {
-      setPageError('Select an existing customer from the customer suggestions.');
+    const matchedCustomer = newLoan.customerId
+      ? null
+      : readCachedCustomers().find(
+          (customer) => (customer.name || '').trim().toLowerCase() === newLoan.customer.trim().toLowerCase()
+        );
+    const customerId = newLoan.customerId || (matchedCustomer ? String(matchedCustomer.id) : '');
+    const customerName = matchedCustomer?.name || newLoan.customer;
+
+    if (!newLoan.loanId.trim()) {
+      setFormError('Loan ID is required.');
+      setSaving(false);
+      return;
+    }
+
+    if (!customerId) {
+      setFormError('Select an existing customer from the customer suggestions before creating the loan.');
       setSaving(false);
       return;
     }
 
     const payload = {
-      customerId: newLoan.customerId,
-      customer: newLoan.customer,
+      loanId: newLoan.loanId.trim(),
+      customerId,
+      customer: customerName,
       lenderName: newLoan.lenderName,
       referenceName: newLoan.referenceName,
       amount: Number(newLoan.amount) || 0,
@@ -187,7 +227,7 @@ function Loans() {
         recordActivitySafely({
           type: 'loan_created',
           actor: user?.username || 'system',
-          message: `Loan #${createdLoan.id} created for ${createdLoan.customer}`,
+          message: `Loan ${formatLoanDisplayId(createdLoan)} created for ${createdLoan.customer}`,
           meta: { loanId: createdLoan.id },
         });
       }
@@ -195,14 +235,16 @@ function Loans() {
       persistLoans(nextLoans);
       closeModal();
     } catch (error) {
-      setPageError(error.message || 'Failed to save loan.');
+      setFormError(error.message || 'Failed to save loan.');
       setSaving(false);
     }
   };
 
   const handleEditClick = (loan) => {
     setEditingLoanId(loan.id);
+    setFormError('');
     setNewLoan({
+      loanId: loan.loanId || '',
       customerId: loan.customerId || '',
       customer: loan.customer || '',
       lenderName: loan.lenderName || '',
@@ -228,12 +270,12 @@ function Loans() {
         item.id === loan.id ? updatedLoan : item
       ));
       persistLoans(nextLoans);
-      showToast(`Loan #${loan.id} moved to ${nextStatus}`, loan.id, previousStatus);
+      showToast(`Loan ${formatLoanDisplayId(loan)} moved to ${nextStatus}`, loan.id, previousStatus);
 
       recordActivitySafely({
         type: 'loan_status_changed',
         actor: user?.username || 'system',
-        message: `Loan #${loan.id} status changed to ${nextStatus}`,
+        message: `Loan ${formatLoanDisplayId(loan)} status changed to ${nextStatus}`,
         meta: { loanId: loan.id, status: nextStatus },
       });
     } catch (error) {
@@ -253,7 +295,7 @@ function Loans() {
         recordActivitySafely({
           type: 'loan_deleted_undo',
           actor: user?.username || 'system',
-          message: `Loan #${toast.loanId} restored`,
+          message: 'Loan restored',
           meta: { loanId: toast.loanId },
         });
       } catch (error) {
@@ -274,7 +316,7 @@ function Loans() {
         recordActivitySafely({
           type: 'loan_status_undo',
           actor: user?.username || 'system',
-          message: `Loan #${toast.loanId} status reverted to ${toast.prevStatus}`,
+          message: `Loan status reverted to ${toast.prevStatus}`,
           meta: { loanId: toast.loanId, status: toast.prevStatus },
         });
       } catch (error) {
@@ -286,7 +328,12 @@ function Loans() {
   };
 
   const handleDeleteLoan = async (loan) => {
-    if (!window.confirm(`Are you sure you want to delete Loan #${loan.id}?`)) {
+    if (!canDelete) {
+      setPageError('Only superusers can delete loans.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete Loan ${formatLoanDisplayId(loan)}?`)) {
       return;
     }
 
@@ -294,12 +341,12 @@ function Loans() {
       await deleteLoanRecord(loan.id);
       const recycleEntry = addToRecycleBin({ entityType: 'loans', item: loan });
       persistLoans(loans.filter((item) => item.id !== loan.id));
-      showToast(`Loan #${loan.id} moved to recycle bin`, loan.id, null, 'delete', recycleEntry);
+      showToast(`Loan ${formatLoanDisplayId(loan)} moved to recycle bin`, loan.id, null, 'delete', recycleEntry);
 
       recordActivitySafely({
         type: 'loan_deleted',
         actor: user?.username || 'system',
-        message: `Loan #${loan.id} moved to recycle bin`,
+        message: `Loan ${formatLoanDisplayId(loan)} moved to recycle bin`,
         meta: { loanId: loan.id },
       });
     } catch (error) {
@@ -326,10 +373,24 @@ function Loans() {
       <div className="filters">
         <input
           type="text"
-          placeholder="Search by customer, lender, or refference..."
+          placeholder="Search by loan ID, customer, lender, refference, date, or time..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
+        />
+        <input
+          type="datetime-local"
+          value={createdFrom}
+          onChange={(e) => setCreatedFrom(e.target.value)}
+          className="filter-input"
+          aria-label="Created from"
+        />
+        <input
+          type="datetime-local"
+          value={createdTo}
+          onChange={(e) => setCreatedTo(e.target.value)}
+          className="filter-input"
+          aria-label="Created to"
         />
         <select
           value={statusFilter}
@@ -356,7 +417,7 @@ function Loans() {
               <th>Interest</th>
               <th>Tenure</th>
               <th>Status</th>
-              <th>Date</th>
+              <th>Created At</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -367,7 +428,7 @@ function Loans() {
               </tr>
             ) : filteredLoans.map((loan) => (
               <tr key={loan.id}>
-                <td>#{loan.id.toString().padStart(4, '0')}</td>
+                <td>{formatLoanDisplayId(loan)}</td>
                 <td>
                   {loan.customerId ? (
                     <Link to={`/customers/${loan.customerId}`} className="customer-link">
@@ -394,12 +455,14 @@ function Loans() {
                     ))}
                   </select>
                 </td>
-                <td>{loan.date}</td>
+                <td>{formatLoanCreatedAt(loan)}</td>
                 <td>
                   <div className="action-buttons">
                     <Link to={`/loans/${loan.id}`} className="btn-view">View</Link>
                     <button className="btn-edit" onClick={() => handleEditClick(loan)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDeleteLoan(loan)}>Delete</button>
+                    {canDelete ? (
+                      <button className="btn-delete" onClick={() => handleDeleteLoan(loan)}>Delete</button>
+                    ) : null}
                   </div>
                 </td>
               </tr>
@@ -428,20 +491,38 @@ function Loans() {
               <button className="modal-close" onClick={closeModal}>x</button>
             </div>
             <form onSubmit={handleSaveLoan}>
+              {formError ? <div className="modal-error-message">{formError}</div> : null}
+              <div className="form-group">
+                <label>Loan ID</label>
+                <input
+                  type="text"
+                  value={newLoan.loanId}
+                  onChange={(e) => {
+                    setFormError('');
+                    setNewLoan({ ...newLoan, loanId: e.target.value });
+                  }}
+                  placeholder="Enter manual loan ID"
+                  required
+                />
+              </div>
               <div className="form-group">
                 <label>Customer Name</label>
                 <CustomerSelect
                   mode="input"
                   valueId={newLoan.customerId}
                   valueName={newLoan.customer}
-                  onChange={({ customerId, customerName }) => setNewLoan({
-                    ...newLoan,
-                    customerId: customerId ? String(customerId) : '',
-                    customer: customerName,
-                  })}
+                  onChange={({ customerId, customerName }) => {
+                    setFormError('');
+                    setNewLoan({
+                      ...newLoan,
+                      customerId: customerId ? String(customerId) : '',
+                      customer: customerName,
+                    });
+                  }}
                   placeholder="Search and select an existing customer"
                   required
                 />
+                <div className="field-hint">Choose the customer from the suggestions so the loan links to the correct record.</div>
               </div>
 
               <div className="form-group">

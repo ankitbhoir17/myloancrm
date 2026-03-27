@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import './LoanDetails.css';
 import {
+  formatLoanDisplayId,
+  formatLoanCreatedAt,
   formatTenureYears,
   getLoanStatusTone,
 } from '../utils/loanWorkflow';
@@ -75,7 +77,7 @@ function LoanDetails() {
       <div className="details-header">
         <div>
           <Link to="/loans" className="back-link">Back to Loans</Link>
-          <h1>Loan #{String(id || loan.id || 1).padStart(4, '0')}</h1>
+          <h1>Loan {formatLoanDisplayId(loan)}</h1>
         </div>
         <span className={`status-badge status-${getLoanStatusTone(loan.status)}`}>
           {loan.status || 'Unknown'}
@@ -86,6 +88,14 @@ function LoanDetails() {
         <div className="details-card">
           <h2>Loan Information</h2>
           <div className="info-grid">
+            <div className="info-item">
+              <label>Loan ID</label>
+              <span>{formatLoanDisplayId(loan)}</span>
+            </div>
+            <div className="info-item">
+              <label>Created At</label>
+              <span>{formatLoanCreatedAt(loan)}</span>
+            </div>
             <div className="info-item">
               <label>Loan Type</label>
               <span>{loan.type}</span>

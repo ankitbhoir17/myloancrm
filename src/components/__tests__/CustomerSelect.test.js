@@ -1,6 +1,6 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CustomerSelect from '../CustomerSelect';
 
 describe('CustomerSelect', () => {
@@ -41,5 +41,28 @@ describe('CustomerSelect', () => {
     const lastCall = handleChange.mock.calls[handleChange.mock.calls.length - 1][0];
     expect(lastCall.customerId).toBe('1');
     expect(lastCall.customerName).toBe('Alice Cooper');
+  });
+
+  test('upgrades an exact typed name into a selected customer after customers sync in later', async () => {
+    localStorage.removeItem('customers');
+    const handleChange = jest.fn();
+
+    render(<CustomerSelect mode="input" onChange={handleChange} placeholder="Search" />);
+
+    const input = screen.getByPlaceholderText('Search');
+    fireEvent.change(input, { target: { value: 'Alice Cooper' } });
+
+    await act(async () => {
+      localStorage.setItem('customers', JSON.stringify([
+        { id: 1, name: 'Alice Cooper', email: 'alice@example.com', phone: '111' },
+      ]));
+      window.dispatchEvent(new CustomEvent('app:storage-changed'));
+    });
+
+    await waitFor(() => {
+      const lastCall = handleChange.mock.calls[handleChange.mock.calls.length - 1][0];
+      expect(lastCall.customerId).toBe('1');
+      expect(lastCall.customerName).toBe('Alice Cooper');
+    });
   });
 });

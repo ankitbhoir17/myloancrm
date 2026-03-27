@@ -30,6 +30,8 @@ describe('Auth and basic APIs', () => {
   let token;
   let customerId;
   let loanId;
+  let enquiryId;
+  let leadId;
   let auditorId;
   let auditorToken;
 
@@ -83,9 +85,10 @@ describe('Auth and basic APIs', () => {
     const loanRes = await request(app)
       .post('/api/loans')
       .set('Authorization', `Bearer ${token}`)
-      .send({ customer: customerId, amount: 5000, termMonths: 12 })
+      .send({ loanId: 'LN-001', customer: customerId, amount: 5000, termMonths: 12 })
       .expect(201);
 
+    expect(loanRes.body.data.loanId).toBe('LN-001');
     loanId = loanRes.body.data._id;
 
     const loansList = await request(app)
@@ -105,6 +108,14 @@ describe('Auth and basic APIs', () => {
     expect(customersList.body.data.length).toBeGreaterThanOrEqual(1);
   });
 
+  test('loan IDs must be unique', async () => {
+    await request(app)
+      .post('/api/loans')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ loanId: 'LN-001', customer: customerId, amount: 7000, termMonths: 24 })
+      .expect(400);
+  });
+
   test('can create and fetch enquiries and leads', async () => {
     const enquiryRes = await request(app)
       .post('/api/enquiries')
@@ -119,6 +130,7 @@ describe('Auth and basic APIs', () => {
       .expect(201);
 
     expect(enquiryRes.body.data.customerId).toBe(customerId);
+    enquiryId = enquiryRes.body.data.id;
 
     const enquiriesList = await request(app)
       .get('/api/enquiries')
@@ -142,6 +154,7 @@ describe('Auth and basic APIs', () => {
       .expect(201);
 
     expect(leadRes.body.data.businessName).toBe('Acme Traders');
+    leadId = leadRes.body.data.id;
 
     const leadsList = await request(app)
       .get('/api/leads')
@@ -152,13 +165,36 @@ describe('Auth and basic APIs', () => {
     expect(leadsList.body.data.length).toBeGreaterThanOrEqual(1);
   });
 
-  test('deleted users cannot keep using an old token', async () => {
+  test('non-superusers cannot delete core CRM data', async () => {
     const loginRes = await request(app)
       .post('/api/auth/login')
       .send({ username: 'auditor', password: 'password123' })
       .expect(200);
 
     auditorToken = loginRes.body.token;
+
+    await request(app)
+      .delete(`/api/customers/${customerId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(403);
+
+    await request(app)
+      .delete(`/api/loans/${loanId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(403);
+
+    await request(app)
+      .delete(`/api/enquiries/${enquiryId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(403);
+
+    await request(app)
+      .delete(`/api/leads/${leadId}`)
+      .set('Authorization', `Bearer ${auditorToken}`)
+      .expect(403);
+  });
+
+  test('deleted users cannot keep using an old token', async () => {
     expect(auditorToken).toBeDefined();
 
     await request(app)

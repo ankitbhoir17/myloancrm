@@ -14,6 +14,10 @@ function buildCustomerName(customer) {
   return [customer?.firstName, customer?.lastName].filter(Boolean).join(' ').trim();
 }
 
+function normalizeLoanId(value) {
+  return String(value || '').trim();
+}
+
 function resolveTermMonths(payload = {}, existingLoan = null) {
   if (payload.termMonths != null && payload.termMonths !== '') {
     return Number(payload.termMonths) || 12;
@@ -57,6 +61,7 @@ function toPublicLoan(loan) {
   return {
     id: loan._id.toString(),
     _id: loan._id.toString(),
+    loanId: normalizeLoanId(loan.loanId),
     customerId: customerId ? customerId.toString() : '',
     customer: customerName,
     customerName,
@@ -82,6 +87,8 @@ function toPublicLoan(loan) {
     nextEmiDate: loan.nextEmiDate || '',
     documents: Array.isArray(loan.documents) ? loan.documents : [],
     emiHistory: Array.isArray(loan.emiHistory) ? loan.emiHistory : [],
+    createdAt: loan.createdAt,
+    updatedAt: loan.updatedAt,
   };
 }
 
@@ -92,6 +99,7 @@ function buildLoanPayload(payload = {}, existingLoan = null, customer = null) {
 
   return {
     ...(payload._id || payload.id ? { _id: payload._id || payload.id } : {}),
+    loanId: normalizeLoanId(payload.loanId ?? existingLoan?.loanId),
     customer: customer?._id || existingLoan?.customer,
     lenderName: String(payload.lenderName ?? existingLoan?.lenderName ?? '').trim(),
     referenceName: String(payload.referenceName ?? existingLoan?.referenceName ?? '').trim(),
@@ -124,8 +132,31 @@ function buildLoanPayload(payload = {}, existingLoan = null, customer = null) {
   };
 }
 
+async function findExistingLoanByLoanId(loanId, excludeLoanId = null) {
+  if (!loanId) {
+    return null;
+  }
+
+  const query = { loanId };
+  if (excludeLoanId) {
+    query._id = { $ne: excludeLoanId };
+  }
+
+  return Loan.findOne(query);
+}
+
 exports.createLoan = async (req, res, next) => {
   try {
+    const loanId = normalizeLoanId(req.body.loanId);
+    if (!loanId) {
+      return res.status(400).json({ message: 'Loan ID is required.' });
+    }
+
+    const existingLoan = await findExistingLoanByLoanId(loanId);
+    if (existingLoan) {
+      return res.status(400).json({ message: 'Loan ID already exists.' });
+    }
+
     const customer = await resolveCustomer(req.body);
     if (!customer) {
       return res.status(400).json({ message: 'A valid customer is required.' });
@@ -163,6 +194,21 @@ exports.updateLoan = async (req, res, next) => {
   try {
     const loan = await Loan.findById(req.params.id).populate('customer');
     if (!loan) return res.status(404).json({ message: 'Not found' });
+
+    const requestedLoanId = Object.prototype.hasOwnProperty.call(req.body, 'loanId')
+      ? normalizeLoanId(req.body.loanId)
+      : null;
+
+    if (requestedLoanId != null && !requestedLoanId) {
+      return res.status(400).json({ message: 'Loan ID is required.' });
+    }
+
+    const existingLoan = requestedLoanId
+      ? await findExistingLoanByLoanId(requestedLoanId, loan._id)
+      : null;
+    if (existingLoan) {
+      return res.status(400).json({ message: 'Loan ID already exists.' });
+    }
 
     const customer = await resolveCustomer(req.body, loan);
     if (!customer) {

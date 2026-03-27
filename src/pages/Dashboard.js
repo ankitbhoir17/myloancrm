@@ -11,7 +11,7 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
-import { LOAN_STATUS_FLOW, normalizeLoanRecord } from '../utils/loanWorkflow';
+import { formatLoanCreatedAt, LOAN_STATUS_FLOW, normalizeLoanRecord } from '../utils/loanWorkflow';
 import { readCachedLoans, syncLoansCache } from '../utils/crmData';
 import './Dashboard.css';
 
@@ -134,7 +134,7 @@ function Dashboard() {
 
   const recentLoans = allLoans
     .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
     .slice(0, 5);
 
   return (
@@ -208,7 +208,7 @@ function Dashboard() {
                 <th>Refference Name</th>
                 <th>Amount</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>Created At</th>
               </tr>
             </thead>
             <tbody>
@@ -219,7 +219,7 @@ function Dashboard() {
                   <td>{loan.referenceName || '-'}</td>
                   <td>Rs. {Number(loan.amount || 0).toLocaleString()}</td>
                   <td>{loan.status}</td>
-                  <td>{loan.date}</td>
+                  <td>{formatLoanCreatedAt(loan)}</td>
                 </tr>
               ))}
             </tbody>

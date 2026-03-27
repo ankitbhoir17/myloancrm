@@ -92,6 +92,30 @@ function CustomerSelect({
   }, [query, customers]);
 
   useEffect(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery || !customers.length) {
+      return;
+    }
+
+    const exactMatch = customers.find(
+      (customer) => (customer.name || '').trim().toLowerCase() === normalizedQuery
+    );
+
+    if (!exactMatch) {
+      return;
+    }
+
+    if (String(valueId || '') === String(exactMatch.id)) {
+      return;
+    }
+
+    onChange({
+      customerId: String(exactMatch.id),
+      customerName: exactMatch.name,
+    });
+  }, [customers, onChange, query, valueId]);
+
+  useEffect(() => {
     function onDocClick(event) {
       if (!rootRef.current) {
         return;

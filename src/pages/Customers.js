@@ -44,6 +44,7 @@ function Customers() {
   const toastTimerRef = useRef(null);
 
   const { user } = useAuth();
+  const canDelete = user?.role === 'superuser';
 
   useEffect(() => {
     let isMounted = true;
@@ -172,6 +173,11 @@ function Customers() {
   };
 
   const handleDeleteCustomer = async (customer) => {
+    if (!canDelete) {
+      setPageError('Only superusers can delete customers.');
+      return;
+    }
+
     if (!window.confirm(`Are you sure you want to delete ${customer.name}?`)) {
       return;
     }
@@ -295,7 +301,9 @@ function Customers() {
             <div className="customer-actions">
               <Link to={`/customers/${customer.id}`} className="btn-view">View Profile</Link>
               <button className="btn-edit" onClick={() => handleEditCustomer(customer)}>Edit</button>
-              <button className="btn-delete" onClick={() => handleDeleteCustomer(customer)}>Delete</button>
+              {canDelete ? (
+                <button className="btn-delete" onClick={() => handleDeleteCustomer(customer)}>Delete</button>
+              ) : null}
             </div>
           </div>
         ))}

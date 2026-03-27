@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { getActivities } from './activities';
 import { getAllStoredLenderLogins } from './lenderLogins';
 import { buildLenderInsight, mergeLendersWithFlow, readStoredLoans } from './lenderFlow';
-import { getLoanStatusSlug, getLoanStatusTone, LOAN_STATUS_FLOW } from './loanWorkflow';
+import { formatLoanDisplayId, getLoanStatusSlug, getLoanStatusTone, LOAN_STATUS_FLOW } from './loanWorkflow';
 import { getRecycleBinItems } from './recycleBin';
 
 const IN_FLOW_EXCLUDED = new Set(['Disbursed', 'Payout Paid', 'Rejected']);
@@ -102,7 +102,7 @@ function buildLoanRows(loans, customerLookup) {
   return loans.map((loan) => {
     const flowIndex = LOAN_STATUS_FLOW.indexOf(loan.status);
     return {
-      'Loan ID': loan.id,
+      'Loan ID': formatLoanDisplayId(loan),
       Customer: loan.customer || '',
       'Customer ID': loan.customerId || '',
       'Customer Status': customerLookup.get(String(loan.customerId))?.status || '',

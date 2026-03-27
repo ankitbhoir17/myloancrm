@@ -34,10 +34,13 @@ function toLoanSummary(loan) {
   return {
     id: loan._id.toString(),
     _id: loan._id.toString(),
+    loanId: String(loan.loanId || '').trim(),
     type: loan.type || 'Personal',
     amount: Number(loan.amount || 0),
     status: loan.status || 'Leads',
     emi: Number(loan.emi || 0),
+    date: loan.date || '',
+    createdAt: loan.createdAt,
   };
 }
 

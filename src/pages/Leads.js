@@ -26,6 +26,7 @@ const emptyLeadForm = {
 
 function Leads() {
   const { user } = useAuth();
+  const canDelete = user?.role === 'superuser';
   const [leads, setLeads] = useState(() => readCachedLeads());
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [pageError, setPageError] = useState('');
@@ -171,6 +172,11 @@ function Leads() {
   };
 
   const handleDelete = async (lead) => {
+    if (!canDelete) {
+      setPageError('Only superusers can delete leads.');
+      return;
+    }
+
     if (!window.confirm(`Delete lead ${lead.businessName}?`)) {
       return;
     }
@@ -475,7 +481,9 @@ function Leads() {
                     <td>{lead.status}</td>
                     <td>
                       <button className="btn-secondary" onClick={() => handleEdit(lead)}>Edit</button>
-                      <button className="btn-danger small" style={{ marginLeft: 8 }} onClick={() => handleDelete(lead)}>Delete</button>
+                      {canDelete ? (
+                        <button className="btn-danger small" style={{ marginLeft: 8 }} onClick={() => handleDelete(lead)}>Delete</button>
+                      ) : null}
                     </td>
                   </tr>
                 ))

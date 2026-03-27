@@ -15,6 +15,15 @@ const emptyForm = {
   password: '',
 };
 
+function readCachedUsersSnapshot() {
+  try {
+    const raw = localStorage.getItem(USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
 function normalizeUser(user) {
   return {
     id: user._id || user.id,
@@ -37,7 +46,7 @@ function recordActivitySafely(payload) {
 
 function Users() {
   const { user, refreshUser } = useAuth();
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => readCachedUsersSnapshot());
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [pageError, setPageError] = useState('');
   const [search, setSearch] = useState('');
@@ -80,7 +89,7 @@ function Users() {
       } catch (error) {
         if (isMounted) {
           setPageError(error.message || 'Failed to load users.');
-          setUsers([]);
+          setUsers(readCachedUsersSnapshot());
         }
       } finally {
         if (isMounted) {
@@ -336,11 +345,15 @@ function Users() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0 }}>Registered Users</h3>
             <span className="muted">
-              {loadingUsers ? 'Loading users...' : `${filteredUsers.length} of ${users.length} users`}
+              {loadingUsers && users.length > 0
+                ? `Syncing ${filteredUsers.length} of ${users.length} users...`
+                : loadingUsers
+                  ? 'Loading users...'
+                  : `${filteredUsers.length} of ${users.length} users`}
             </span>
           </div>
 
-          {loadingUsers ? (
+          {loadingUsers && filteredUsers.length === 0 ? (
             <p className="muted">Loading users from the server...</p>
           ) : filteredUsers.length === 0 ? (
             <p className="muted">No users match the current filters.</p>

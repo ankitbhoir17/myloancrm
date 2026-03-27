@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   createLead,
   bulkCreateLeads,
@@ -14,6 +14,6 @@ router.use(protect);
 
 router.post('/bulk', bulkCreateLeads);
 router.route('/').get(getLeads).post(createLead);
-router.route('/:id').get(getLead).put(updateLead).delete(deleteLead);
+router.route('/:id').get(getLead).put(updateLead).delete(authorize('superuser'), deleteLead);
 
 module.exports = router;

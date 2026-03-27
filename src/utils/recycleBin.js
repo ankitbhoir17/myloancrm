@@ -1,3 +1,5 @@
+import { formatLoanDisplayId } from './loanWorkflow';
+
 const RECYCLE_BIN_KEY = 'app_recycle_bin';
 
 export const RECYCLE_ENTITY_CONFIG = {
@@ -42,7 +44,7 @@ function asNumber(value) {
 function buildTitle(entityType, item) {
   switch (entityType) {
     case 'loans':
-      return `Loan #${String(item?.id ?? '').padStart(4, '0')}`;
+      return `Loan ${formatLoanDisplayId(item)}`;
     case 'customers':
       return item?.name || `Customer #${item?.id ?? ''}`;
     case 'enquiries':

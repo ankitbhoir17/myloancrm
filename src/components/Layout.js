@@ -250,12 +250,12 @@ function Layout() {
     { to: '/', label: 'Dashboard', iconKey: 'dashboard', toneClass: 'tone-sky', end: true },
     { to: '/loans', label: 'Loans', iconKey: 'loan', toneClass: 'tone-amber' },
     { to: '/customers', label: 'Customers', iconKey: 'customers', toneClass: 'tone-emerald' },
-    { to: '/recycle-bin', label: 'Recycle Bin', iconKey: 'recycle', toneClass: 'tone-rose' },
     { to: '/enquiries', label: 'Enquiries', iconKey: 'enquiries', toneClass: 'tone-violet' },
     { to: '/leads', label: 'Leads', iconKey: 'reports', toneClass: 'tone-cyan' },
   ];
 
   const superuserItems = [
+    { to: '/recycle-bin', label: 'Recycle Bin', iconKey: 'recycle', toneClass: 'tone-rose' },
     { to: '/activities', label: 'Activities', iconKey: 'activities', toneClass: 'tone-teal' },
     { to: '/users', label: 'Users', iconKey: 'users', toneClass: 'tone-indigo' },
     { to: '/lenders', label: 'Lenders', iconKey: 'lenders', toneClass: 'tone-gold' },
@@ -263,7 +263,9 @@ function Layout() {
 
   const footerItems = [
     { to: '/roi', label: 'ROI Calculators', iconKey: 'roi', toneClass: 'tone-orange' },
-    { to: '/backup', label: 'Backup Center', iconKey: 'backup', toneClass: 'tone-cyan' },
+    ...(user && user.role === 'superuser'
+      ? [{ to: '/backup', label: 'Backup Center', iconKey: 'backup', toneClass: 'tone-cyan' }]
+      : []),
   ];
 
   return (

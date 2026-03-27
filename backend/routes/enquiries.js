@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   createEnquiry,
   getEnquiries,
@@ -12,6 +12,6 @@ const {
 router.use(protect);
 
 router.route('/').get(getEnquiries).post(createEnquiry);
-router.route('/:id').get(getEnquiry).put(updateEnquiry).delete(deleteEnquiry);
+router.route('/:id').get(getEnquiry).put(updateEnquiry).delete(authorize('superuser'), deleteEnquiry);
 
 module.exports = router;

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const loanSchema = new mongoose.Schema(
   {
+    loanId: { type: String, trim: true },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
     lenderName: { type: String, trim: true, default: '' },
     referenceName: { type: String, trim: true, default: '' },
@@ -25,6 +26,16 @@ const loanSchema = new mongoose.Schema(
     metadata: { type: Object, default: {} },
   },
   { timestamps: true }
+);
+
+loanSchema.index(
+  { loanId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      loanId: { $exists: true, $type: 'string', $ne: '' },
+    },
+  }
 );
 
 module.exports = mongoose.model('Loan', loanSchema);

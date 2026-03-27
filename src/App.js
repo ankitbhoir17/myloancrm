@@ -19,10 +19,13 @@ import RoiCalculator from './pages/RoiCalculator';
 import BackupCenter from './pages/BackupCenter';
 import Layout from './components/Layout';
 import './App.css';
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, roles = null }) {
   const { user } = useAuth();
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/" replace />;
   }
   return children;
 }
@@ -46,7 +49,7 @@ function App() {
           <Route path="loans/:id" element={<LoanDetails />} />
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<CustomerDetails />} />
-          <Route path="recycle-bin" element={<RecycleBin />} />
+          <Route path="recycle-bin" element={<ProtectedRoute roles={['superuser']}><RecycleBin /></ProtectedRoute>} />
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="leads" element={<Leads />} />
           <Route path="callbacks" element={<Placeholder title="Callbacks" />} />
@@ -57,8 +60,8 @@ function App() {
           <Route path="sanctions" element={<Placeholder title="Sanctions" />} />
           <Route path="disbursals" element={<Placeholder title="Disbursals" />} />
           <Route path="rejects" element={<Placeholder title="Rejects" />} />
-          <Route path="activities" element={<Activities />} />
-          <Route path="users" element={<Users />} />
+          <Route path="activities" element={<ProtectedRoute roles={['superuser']}><Activities /></ProtectedRoute>} />
+          <Route path="users" element={<ProtectedRoute roles={['superuser']}><Users /></ProtectedRoute>} />
           <Route path="lenders" element={<Lenders />} />
           <Route path="lenders/:id/logins" element={<LenderLogins />} />
           <Route path="reports" element={<Placeholder title="Reports" />} />
@@ -68,7 +71,7 @@ function App() {
           <Route path="knowledge" element={<Placeholder title="Knowledge Hub" />} />
           <Route path="hrm" element={<Placeholder title="HRM" />} />
           <Route path="roi" element={<RoiCalculator />} />
-          <Route path="backup" element={<BackupCenter />} />
+          <Route path="backup" element={<ProtectedRoute roles={['superuser']}><BackupCenter /></ProtectedRoute>} />
         </Route>
       </Routes>
     </AuthProvider>

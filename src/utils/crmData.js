@@ -46,6 +46,7 @@ export function normalizeLoanApiRecord(loan) {
   return normalizeLoanRecord({
     id: String(loan?.id || loan?._id || ''),
     customerId: loan?.customerId ? String(loan.customerId) : '',
+    loanId: loan?.loanId || '',
     customer: loan?.customer || '',
     lenderName: loan?.lenderName || '',
     referenceName: loan?.referenceName || '',
@@ -67,6 +68,8 @@ export function normalizeLoanApiRecord(loan) {
     nextEmiDate: loan?.nextEmiDate || '',
     documents: Array.isArray(loan?.documents) ? loan.documents : [],
     emiHistory: Array.isArray(loan?.emiHistory) ? loan.emiHistory : [],
+    createdAt: loan?.createdAt || '',
+    updatedAt: loan?.updatedAt || '',
   });
 }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Lenders.css';
 import { fetchLenderLogins } from '../utils/lenderLogins';
-import { LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
+import { formatLoanCreatedAt, LOAN_STATUS_FLOW } from '../utils/loanWorkflow';
 import {
   buildLenderInsight,
   formatCurrency,
@@ -242,6 +242,9 @@ function Lenders() {
         loan.referenceName,
         loan.type,
         loan.status,
+        loan.date,
+        loan.createdAt,
+        formatLoanCreatedAt(loan),
       ]
         .filter(Boolean)
         .join(' ')
@@ -689,7 +692,7 @@ function Lenders() {
                         <div key={loan.id} className="flow-case-row">
                           <div>
                             <strong>{loan.customer || 'Unknown customer'}</strong>
-                            <div className="row-meta">{loan.type || 'Loan'} • {formatCurrency(loan.amount)} • {formatDate(loan.date)}</div>
+                            <div className="row-meta">{loan.type || 'Loan'} • {formatCurrency(loan.amount)} • {formatLoanCreatedAt(loan)}</div>
                             <div className="row-meta">{loan.referenceName || 'No reference'}</div>
                           </div>
                           <div className="row-actions">

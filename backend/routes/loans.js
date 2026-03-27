@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   createLoan,
   getLoans,
@@ -10,6 +10,6 @@ const {
 } = require('../controllers/loansController');
 
 router.route('/').get(protect, getLoans).post(protect, createLoan);
-router.route('/:id').get(protect, getLoan).put(protect, updateLoan).delete(protect, deleteLoan);
+router.route('/:id').get(protect, getLoan).put(protect, updateLoan).delete(protect, authorize('superuser'), deleteLoan);
 
 module.exports = router;

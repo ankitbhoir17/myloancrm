@@ -82,6 +82,19 @@ function RecycleBin() {
     };
   }, []);
 
+  if (!user || user.role !== 'superuser') {
+    return (
+      <div className="customers-page recycle-page">
+        <div className="page-header">
+          <div>
+            <h1>Recycle Bin</h1>
+          </div>
+        </div>
+        <p>Access denied. Superuser only.</p>
+      </div>
+    );
+  }
+
   const counts = useMemo(() => items.reduce((acc, entry) => {
     const section = getSection(entry);
     acc.all += 1;

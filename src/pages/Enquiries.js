@@ -29,6 +29,7 @@ function Enquiries() {
   });
 
   const { user } = useAuth();
+  const canDelete = user?.role === 'superuser';
 
   useEffect(() => {
     let mounted = true;
@@ -142,6 +143,11 @@ function Enquiries() {
   };
 
   const handleDeleteEnquiry = async (enquiry) => {
+    if (!canDelete) {
+      setPageError('Only superusers can delete enquiries.');
+      return;
+    }
+
     setPageError('');
 
     try {
@@ -278,7 +284,9 @@ function Enquiries() {
                 <button className="btn-secondary" onClick={() => handleResolveEnquiry(enquiry)}>
                   {enquiry.status === 'New' ? 'Resolve' : 'Reopen'}
                 </button>
-                <button className="btn-danger" onClick={() => handleDeleteEnquiry(enquiry)}>Delete</button>
+                {canDelete ? (
+                  <button className="btn-danger" onClick={() => handleDeleteEnquiry(enquiry)}>Delete</button>
+                ) : null}
                 {enquiry.customerId ? (
                   <Link to={`/customers/${enquiry.customerId}`} className="action-link">View Customer</Link>
                 ) : null}
