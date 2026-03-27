@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PasswordField from '../components/PasswordField';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
 
@@ -107,13 +108,13 @@ function Login() {
           ) : null}
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              type="password"
+            <PasswordField
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
               required
+              autoComplete={setupRequired ? 'new-password' : 'current-password'}
             />
           </div>
           {setupStatusError ? <div className="error-message">{setupStatusError}</div> : null}

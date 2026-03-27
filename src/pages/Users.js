@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import PasswordField from '../components/PasswordField';
 import { useAuth } from '../context/AuthContext';
 import { addActivity } from '../utils/activities';
 import { addToRecycleBin } from '../utils/recycleBin';
@@ -56,6 +57,10 @@ function Users() {
   const [formValues, setFormValues] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [resetTargetUser, setResetTargetUser] = useState(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const syncUsersSnapshot = (nextUsers) => {
     setUsers(nextUsers);
@@ -124,6 +129,13 @@ function Users() {
     setFormValues(emptyForm);
     setFormError('');
     setSaving(false);
+  };
+
+  const closeResetModal = () => {
+    setResetTargetUser(null);
+    setResetPasswordValue('');
+    setResetPasswordError('');
+    setResettingPassword(false);
   };
 
   const openAddModal = () => {
@@ -270,38 +282,51 @@ function Users() {
     }
   };
 
-  const handleResetPassword = async (id) => {
+  const openResetPasswordModal = (id) => {
     const targetUser = users.find((item) => item.id === id);
     if (!targetUser) {
       return;
     }
 
-    const passwordValue = prompt(`Enter a new password for ${targetUser.username}:`, 'password123');
-    if (passwordValue === null) {
+    setResetTargetUser(targetUser);
+    setResetPasswordValue('');
+    setResetPasswordError('');
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetTargetUser) {
       return;
     }
 
-    const newPassword = passwordValue.trim() || 'password123';
+    const newPassword = resetPasswordValue.trim();
+    if (!newPassword) {
+      setResetPasswordError('Password is required.');
+      return;
+    }
 
     try {
-      await apiFetch(`/api/users/${id}/password`, {
+      setResettingPassword(true);
+      setResetPasswordError('');
+      await apiFetch(`/api/users/${resetTargetUser.id}/password`, {
         method: 'PATCH',
         body: { password: newPassword },
       });
 
       syncUsersSnapshot(users.map((item) => (
-        item.id === id ? { ...item, passwordSet: true } : item
+        item.id === resetTargetUser.id ? { ...item, passwordSet: true } : item
       )));
-      alert(`Password updated for ${targetUser.username}.`);
 
       recordActivitySafely({
         type: 'user_password_reset',
         actor: user?.username || 'system',
-        message: `Password reset for ${targetUser.username} by ${user?.username || 'system'}`,
-        meta: { userId: id },
+        message: `Password reset for ${resetTargetUser.username} by ${user?.username || 'system'}`,
+        meta: { userId: resetTargetUser.id },
       });
+      closeResetModal();
     } catch (error) {
-      alert(error.message || 'Failed to reset password.');
+      setResetPasswordError(error.message || 'Failed to reset password.');
+      setResettingPassword(false);
     }
   };
 
@@ -380,7 +405,7 @@ function Users() {
                       <td>{item.email}</td>
                       <td>
                         <button className="btn-secondary" onClick={() => openEditModal(item)}>Edit</button>
-                        <button className="btn-secondary" onClick={() => handleResetPassword(item.id)} style={{ marginLeft: 8 }}>
+                        <button className="btn-secondary" onClick={() => openResetPasswordModal(item.id)} style={{ marginLeft: 8 }}>
                           Reset Password
                         </button>
                         <button className="btn-danger" onClick={() => handleDelete(item.id)} style={{ marginLeft: 8 }}>
@@ -448,11 +473,13 @@ function Users() {
 
               <div className="form-group">
                 <label>{editingUserId ? 'Password (leave blank to keep current password)' : 'Password'}</label>
-                <input
-                  type="password"
+                <PasswordField
+                  id="user-password"
                   value={formValues.password}
                   onChange={(e) => setFormValues({ ...formValues, password: e.target.value })}
                   required={!editingUserId}
+                  placeholder={editingUserId ? 'Enter a new password if you want to change it' : 'Enter password'}
+                  autoComplete="new-password"
                 />
               </div>
 
@@ -462,6 +489,46 @@ function Users() {
                 <button type="button" className="btn-secondary" onClick={closeModal}>Cancel</button>
                 <button type="submit" className="btn-primary" disabled={saving}>
                   {saving ? 'Saving...' : (editingUserId ? 'Save Changes' : 'Create User')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {resetTargetUser ? (
+        <div className="modal-overlay" onClick={closeResetModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Reset Password</h2>
+              <button type="button" className="modal-close" onClick={closeResetModal}>x</button>
+            </div>
+
+            <form onSubmit={handleResetPassword}>
+              <div className="form-group">
+                <label>User</label>
+                <input value={resetTargetUser.username} disabled />
+              </div>
+
+              <div className="form-group">
+                <label>New Password</label>
+                <PasswordField
+                  id="reset-password"
+                  value={resetPasswordValue}
+                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                  required
+                  placeholder="Enter the new password"
+                  autoComplete="new-password"
+                  disabled={resettingPassword}
+                />
+              </div>
+
+              {resetPasswordError ? <div className="error-message">{resetPasswordError}</div> : null}
+
+              <div className="modal-actions">
+                <button type="button" className="btn-secondary" onClick={closeResetModal}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={resettingPassword}>
+                  {resettingPassword ? 'Resetting...' : 'Reset Password'}
                 </button>
               </div>
             </form>
