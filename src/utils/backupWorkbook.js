@@ -103,6 +103,8 @@ function buildLoanRows(loans, customerLookup) {
     const flowIndex = LOAN_STATUS_FLOW.indexOf(loan.status);
     return {
       'Loan ID': formatLoanDisplayId(loan),
+      'Manual Loan ID': loan.loanId || '',
+      'System Record ID': loan.id || loan._id || '',
       Customer: loan.customer || '',
       'Customer ID': loan.customerId || '',
       'Customer Status': customerLookup.get(String(loan.customerId))?.status || '',
@@ -304,6 +306,8 @@ export function getBackupSnapshot() {
       rows: buildLoanRows(loans, customerLookup),
       headers: [
         'Loan ID',
+        'Manual Loan ID',
+        'System Record ID',
         'Customer',
         'Customer ID',
         'Customer Status',

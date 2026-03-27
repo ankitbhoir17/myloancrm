@@ -135,6 +135,7 @@ function Loans() {
     const searchValue = searchTerm.toLowerCase();
     const matchesSearch = [
       loan.loanId,
+      loan.id,
       loan.customer,
       loan.lenderName,
       loan.referenceName,
@@ -493,19 +494,6 @@ function Loans() {
             <form onSubmit={handleSaveLoan}>
               {formError ? <div className="modal-error-message">{formError}</div> : null}
               <div className="form-group">
-                <label>Loan ID</label>
-                <input
-                  type="text"
-                  value={newLoan.loanId}
-                  onChange={(e) => {
-                    setFormError('');
-                    setNewLoan({ ...newLoan, loanId: e.target.value });
-                  }}
-                  placeholder="Enter manual loan ID"
-                  required
-                />
-              </div>
-              <div className="form-group">
                 <label>Customer Name</label>
                 <CustomerSelect
                   mode="input"
@@ -523,6 +511,35 @@ function Loans() {
                   required
                 />
                 <div className="field-hint">Choose the customer from the suggestions so the loan links to the correct record.</div>
+              </div>
+
+              <div className="form-group">
+                <label>Manual Loan ID</label>
+                <input
+                  type="text"
+                  value={newLoan.loanId}
+                  onChange={(e) => {
+                    setFormError('');
+                    setNewLoan({ ...newLoan, loanId: e.target.value });
+                  }}
+                  placeholder="Enter manual loan ID"
+                  required
+                />
+                <div className="field-hint">
+                  This manual loan ID can be changed later. The system record ID stays saved automatically in the background.
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>System Record ID</label>
+                <input
+                  type="text"
+                  value={editingLoanId || 'Will be created automatically after saving this loan'}
+                  readOnly
+                />
+                <div className="field-hint">
+                  This internal system ID is kept separately, even if the manual loan ID is edited later.
+                </div>
               </div>
 
               <div className="form-group">

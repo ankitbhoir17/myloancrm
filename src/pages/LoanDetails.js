@@ -89,7 +89,15 @@ function LoanDetails() {
           <h2>Loan Information</h2>
           <div className="info-grid">
             <div className="info-item">
-              <label>Loan ID</label>
+              <label>Manual Loan ID</label>
+              <span>{loan.loanId || '-'}</span>
+            </div>
+            <div className="info-item">
+              <label>System Record ID</label>
+              <span>{loan.id || loan._id || '-'}</span>
+            </div>
+            <div className="info-item">
+              <label>Shown Loan ID</label>
               <span>{formatLoanDisplayId(loan)}</span>
             </div>
             <div className="info-item">
